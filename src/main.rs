@@ -1,5 +1,6 @@
 use std::os::unix::net::UnixStream;
 use http::{Request, Response, StatusCode, HeaderValue};
+use http::header;
 use std::io::{Read, Write};
 use std::time::Duration;
 use httparse;
@@ -87,7 +88,7 @@ fn to_http_response<T>(parsed: httparse::Response, body: T) -> Response<T> {
     let headers = response.headers_mut().unwrap();
 
     for header in parsed.headers.iter() {
-        let header_name = to_static_str(header.name.to_string());
+        let header_name = header.name.parse::<header::HeaderName>().unwrap();
         let header_value = HeaderValue::from_bytes(header.value).unwrap();
         headers.insert(header_name, header_value);
     }
@@ -96,9 +97,4 @@ fn to_http_response<T>(parsed: httparse::Response, body: T) -> Response<T> {
         .status(parsed.code.unwrap_or(0))
         .body(body)
         .unwrap()
-}
-
-
-pub fn to_static_str(s: String) -> &'static str {
-    Box::leak(s.into_boxed_str())
 }
