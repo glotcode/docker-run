@@ -11,6 +11,7 @@ use httparse;
 use std::str;
 use serde::{Serialize, Deserialize};
 use serde::de::DeserializeOwned;
+use serde_json::{Value, Map};
 use serde_json;
 
 use glot_docker_run::docker;
@@ -27,21 +28,16 @@ fn main() {
         .header("Host", "127.0.0.1")
         .header("Content-Length", 0)
         .header("Connection", "close")
-        .body(())
+        .body(http_extra::Body::Empty())
         .unwrap();
 
     let config = docker::default_container_config("glot/bash:latest".to_string());
-    docker::create_container(&config);
-
-    let req_str = http_extra::request_to_string(req);
+    let create_container_req = docker::create_container(&config);
 
     let mut stream = UnixStream::connect("/Users/pii/Library/Containers/com.docker.docker/Data/docker.raw.sock").unwrap();
-
-    stream.write_all(req_str.as_bytes()).unwrap();
-    let mut resp_bytes = Vec::new();
     stream.set_read_timeout(Some(Duration::new(10, 0)));
-    stream.read_to_end(&mut resp_bytes).unwrap();
-    let resp : Result<Response<DockerVersion>, http_extra::ParseError> = http_extra::parse_response(resp_bytes);
+
+    let resp = http_extra::send_request(stream, create_container_req);
 
     println!("{:?}", resp);
 }

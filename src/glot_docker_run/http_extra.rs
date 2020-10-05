@@ -8,7 +8,42 @@ use std::str;
 use serde::{Serialize, Deserialize};
 use serde::de::DeserializeOwned;
 use serde_json;
+use std::io;
+use serde_json::{Value, Map};
 
+
+pub enum Body {
+    Empty(),
+    Bytes(Vec<u8>),
+}
+
+
+
+pub fn send_request<T: Read + Write>(mut stream: T, req: Request<Body>) -> Result<Response<Map<String, Value>>, io::Error> {
+    let head = format!("{} {} {:?}", req.method().as_str(), req.uri().path(), req.version());
+
+    let headers = req.headers()
+        .iter()
+        .map(|(key, value)| format!("{}: {}", key, value.to_str().unwrap()))
+        .collect::<Vec<String>>();
+
+    match req.body() {
+        Body::Empty() => {
+            write!(stream, "{}\r\n{}\r\n\r\n\r\n", head, headers.join("\r\n"))
+        },
+
+        Body::Bytes(body) => {
+            write!(stream, "{}\r\n{}\r\n\r\n", head, headers.join("\r\n"));
+            stream.write_all(body)
+        },
+    }?;
+
+    let mut resp_bytes = Vec::new();
+    stream.read_to_end(&mut resp_bytes)?;
+
+    let resp = parse_response(resp_bytes).unwrap();
+    Ok(resp)
+}
 
 pub fn request_to_string<T>(req: Request<T>) -> String {
     let head = format!("{} {} {:?}", req.method().as_str(), req.uri().path(), req.version());

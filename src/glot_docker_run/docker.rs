@@ -1,4 +1,5 @@
 use http;
+use crate::glot_docker_run::http_extra;
 use serde::{Serialize};
 use serde_json;
 
@@ -76,15 +77,15 @@ pub fn default_container_config(image_name: String) -> ContainerConfig {
 }
 
 
-pub fn create_container(config: &ContainerConfig) -> http::Request<Vec<u8>> {
+pub fn create_container(config: &ContainerConfig) -> http::Request<http_extra::Body> {
     let body = serde_json::to_vec(config).unwrap();
 
-    http::Request::get("/containers/create")
+    http::Request::post("/containers/create")
         .header("Content-Type", "application/json")
         .header("Accept", "application/json")
         .header("Host", "127.0.0.1")
         .header("Content-Length", body.len())
         .header("Connection", "close")
-        .body(body)
+        .body(http_extra::Body::Bytes(body))
         .unwrap()
 }
