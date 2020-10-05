@@ -1,3 +1,7 @@
+#![allow(warnings)]
+
+mod glot_docker_run;
+
 use std::os::unix::net::UnixStream;
 use http::{Request, Response, StatusCode, HeaderValue};
 use http::header;
@@ -8,6 +12,9 @@ use std::str;
 use serde::{Serialize, Deserialize};
 use serde::de::DeserializeOwned;
 use serde_json;
+
+use glot_docker_run::docker;
+use glot_docker_run::http_extra;
 
 
 fn main() {
@@ -23,8 +30,10 @@ fn main() {
         .body(())
         .unwrap();
 
+    let config = docker::default_container_config("glot/bash:latest".to_string());
+    docker::create_container(&config);
 
-    let req_str = request_to_string(req);
+    let req_str = http_extra::request_to_string(req);
 
     let mut stream = UnixStream::connect("/Users/pii/Library/Containers/com.docker.docker/Data/docker.raw.sock").unwrap();
 
@@ -32,7 +41,7 @@ fn main() {
     let mut resp_bytes = Vec::new();
     stream.set_read_timeout(Some(Duration::new(10, 0)));
     stream.read_to_end(&mut resp_bytes).unwrap();
-    let resp : Result<Response<DockerVersion>, ParseError> = parse(resp_bytes);
+    let resp : Result<Response<DockerVersion>, http_extra::ParseError> = http_extra::parse_response(resp_bytes);
 
     println!("{:?}", resp);
 }
@@ -44,57 +53,4 @@ struct DockerVersion {
     version: String,
     api_version: String,
     kernel_version: String,
-}
-
-fn request_to_string<T>(req: Request<T>) -> String {
-    let head = format!("{} {} {:?}", req.method().as_str(), req.uri().path(), req.version());
-
-    let headers = req.headers()
-        .iter()
-        .map(|(key, value)| format!("{}: {}", key, value.to_str().unwrap()))
-        .collect::<Vec<String>>();
-
-    format!("{}\r\n{}\r\n\r\n\r\n", head, headers.join("\r\n"))
-}
-
-#[derive(Debug)]
-enum ParseError {
-    Parse(httparse::Error),
-    PartialParse(),
-}
-
-fn parse<T: DeserializeOwned>(bytes: Vec<u8>) -> Result<Response<T>, ParseError> {
-    let mut headers = [httparse::EMPTY_HEADER; 30];
-    let mut resp = httparse::Response::new(&mut headers);
-
-    match resp.parse(&bytes) {
-        Ok(httparse::Status::Complete(parsed_len)) => {
-            let foo = serde_json::from_slice(&bytes[parsed_len..]).unwrap();
-            Ok(to_http_response(resp, foo))
-        }
-        Ok(httparse::Status::Partial) => {
-            Err(ParseError::PartialParse())
-        },
-        Err(err) => {
-            Err(ParseError::Parse(err))
-        }
-    }
-}
-
-
-
-fn to_http_response<T>(parsed: httparse::Response, body: T) -> Response<T> {
-    let mut response = Response::builder();
-    let headers = response.headers_mut().unwrap();
-
-    for header in parsed.headers.iter() {
-        let header_name = header.name.parse::<header::HeaderName>().unwrap();
-        let header_value = HeaderValue::from_bytes(header.value).unwrap();
-        headers.insert(header_name, header_value);
-    }
-
-    response
-        .status(parsed.code.unwrap_or(0))
-        .body(body)
-        .unwrap()
 }
