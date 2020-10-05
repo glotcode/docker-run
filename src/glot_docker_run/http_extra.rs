@@ -29,7 +29,7 @@ pub fn send_request<T: Read + Write>(mut stream: T, req: Request<Body>) -> Resul
 
     match req.body() {
         Body::Empty() => {
-            write!(stream, "{}\r\n{}\r\n\r\n\r\n", head, headers.join("\r\n"))
+            write!(stream, "{}\r\n{}\r\n\r\n", head, headers.join("\r\n"))
         },
 
         Body::Bytes(body) => {
