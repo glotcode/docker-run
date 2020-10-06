@@ -19,7 +19,7 @@ pub enum Body {
 
 
 
-pub fn send_request<T: Read + Write>(mut stream: T, req: Request<Body>) -> Result<Response<Map<String, Value>>, io::Error> {
+pub fn send_request<Stream: Read + Write, ResponseBody: DeserializeOwned>(mut stream: Stream, req: Request<Body>) -> Result<Response<ResponseBody>, io::Error> {
     let head = format!("{} {} {:?}", req.method().as_str(), req.uri().path(), req.version());
 
     let headers = req.headers()
