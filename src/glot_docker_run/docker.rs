@@ -1,6 +1,6 @@
 use http;
 use crate::glot_docker_run::http_extra;
-use serde::{Serialize};
+use serde::{Serialize, Deserialize};
 use serde_json;
 
 #[derive(Serialize)]
@@ -74,6 +74,23 @@ pub fn default_container_config(image_name: String) -> ContainerConfig {
             ],
         },
     }
+}
+
+
+pub fn version() -> http::Request<http_extra::Body> {
+    http::Request::get("/version")
+        .header("Accept", "application/json")
+        .header("Host", "127.0.0.1")
+        .header("Connection", "close")
+        .body(http_extra::Body::Empty())
+        .unwrap()
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct ContainerCreatedResponse {
+    id: String,
+    warnings: Vec<String>,
 }
 
 

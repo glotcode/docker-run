@@ -19,16 +19,6 @@ use glot_docker_run::http_extra;
 
 
 fn main() {
-    let path = "/version";
-
-    let req = Request::get(path)
-        .header("Content-Type", "application/json")
-        .header("Accept", "application/json")
-        .header("Host", "127.0.0.1")
-        .header("Content-Length", 0)
-        .header("Connection", "close")
-        .body(http_extra::Body::Empty())
-        .unwrap();
 
     let config = docker::default_container_config("glot/bash:latest".to_string());
     let create_container_req = docker::create_container(&config);
@@ -36,7 +26,7 @@ fn main() {
     let mut stream = UnixStream::connect("/Users/pii/Library/Containers/com.docker.docker/Data/docker.raw.sock").unwrap();
     stream.set_read_timeout(Some(Duration::new(10, 0)));
 
-    let resp = http_extra::send_request(stream, create_container_req);
+    let resp : Result<Response<docker::ContainerCreatedResponse>, _>= http_extra::send_request(stream, create_container_req);
 
     println!("{:?}", resp);
 }
