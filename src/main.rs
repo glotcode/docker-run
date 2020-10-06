@@ -19,7 +19,6 @@ use glot_docker_run::http_extra;
 
 
 fn main() {
-    //let path = "/containers/0b0e9fc7eeb667dcde1f446373e3e5a09993cd4e27e0f8ace94e8ade065d4a25/stats";
     let path = "/version";
 
     let req = Request::get(path)

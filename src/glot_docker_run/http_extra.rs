@@ -29,11 +29,11 @@ pub fn send_request<T: Read + Write>(mut stream: T, req: Request<Body>) -> Resul
 
     match req.body() {
         Body::Empty() => {
-            write!(stream, "{}\r\n{}\r\n\r\n", head, headers.join("\r\n"))
+            write!(stream, "{}\n{}\n\n", head, headers.join("\r\n"))
         },
 
         Body::Bytes(body) => {
-            write!(stream, "{}\r\n{}\r\n\r\n", head, headers.join("\r\n"));
+            write!(stream, "{}\n{}\n\n", head, headers.join("\r\n"));
             stream.write_all(body)
         },
     }?;
@@ -45,16 +45,6 @@ pub fn send_request<T: Read + Write>(mut stream: T, req: Request<Body>) -> Resul
     Ok(resp)
 }
 
-pub fn request_to_string<T>(req: Request<T>) -> String {
-    let head = format!("{} {} {:?}", req.method().as_str(), req.uri().path(), req.version());
-
-    let headers = req.headers()
-        .iter()
-        .map(|(key, value)| format!("{}: {}", key, value.to_str().unwrap()))
-        .collect::<Vec<String>>();
-
-    format!("{}\r\n{}\r\n\r\n\r\n", head, headers.join("\r\n"))
-}
 
 #[derive(Debug)]
 pub enum ParseError {
