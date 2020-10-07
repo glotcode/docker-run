@@ -18,6 +18,18 @@ pub enum Body {
 }
 
 
+#[derive(Debug)]
+pub struct EmptyResponse {}
+
+impl<'de> Deserialize<'de> for EmptyResponse {
+    fn deserialize<D>(_: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        Ok(EmptyResponse{})
+    }
+}
+
 
 pub fn send_request<Stream: Read + Write, ResponseBody: DeserializeOwned>(mut stream: Stream, req: Request<Body>) -> Result<Response<ResponseBody>, io::Error> {
     let head = format!("{} {} {:?}", req.method().as_str(), req.uri().path(), req.version());
@@ -58,12 +70,14 @@ pub fn parse_response<T: DeserializeOwned>(bytes: Vec<u8>) -> Result<Response<T>
 
     match resp.parse(&bytes) {
         Ok(httparse::Status::Complete(parsed_len)) => {
-            let foo = serde_json::from_slice(&bytes[parsed_len..]).unwrap();
-            Ok(to_http_response(resp, foo))
+            let response_body = serde_json::from_slice(&bytes[parsed_len..]).unwrap();
+            Ok(to_http_response(resp, response_body))
         }
+
         Ok(httparse::Status::Partial) => {
             Err(ParseError::PartialParse())
-        },
+        }
+
         Err(err) => {
             Err(ParseError::Parse(err))
         }

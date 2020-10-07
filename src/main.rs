@@ -19,14 +19,17 @@ use glot_docker_run::http_extra;
 
 
 fn main() {
-
-    let config = docker::default_container_config("glot/bash:latest".to_string());
-    let create_container_req = docker::create_container(&config);
-
     let mut stream = UnixStream::connect("/Users/pii/Library/Containers/com.docker.docker/Data/docker.raw.sock").unwrap();
     stream.set_read_timeout(Some(Duration::new(10, 0)));
 
-    let resp : Result<Response<docker::ContainerCreatedResponse>, _>= http_extra::send_request(stream, create_container_req);
+
+    let config = docker::default_container_config("glot/bash:latest".to_string());
+    //let create_container_req = docker::create_container(&config);
+    //let resp : Result<Response<docker::ContainerCreatedResponse>, _>= http_extra::send_request(stream, create_container_req);
+
+
+    let start_container_req = docker::start_container("79c5f827cab3ebffcdbd1f210a9825402ebcb87eae14e51950a8972c446c622d");
+    let resp : Result<Response<http_extra::EmptyResponse>, _>= http_extra::send_request(stream, start_container_req);
 
     println!("{:?}", resp);
 }

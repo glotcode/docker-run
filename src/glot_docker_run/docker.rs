@@ -106,3 +106,15 @@ pub fn create_container(config: &ContainerConfig) -> http::Request<http_extra::B
         .body(http_extra::Body::Bytes(body))
         .unwrap()
 }
+
+
+pub fn start_container(containerId: &str) -> http::Request<http_extra::Body> {
+    let url = format!("/containers/{}/start", containerId);
+
+    http::Request::post(url)
+        .header("Accept", "application/json")
+        .header("Host", "127.0.0.1")
+        .header("Connection", "close")
+        .body(http_extra::Body::Empty())
+        .unwrap()
+}
