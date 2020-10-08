@@ -1,16 +1,12 @@
-use std::os::unix::net::UnixStream;
-use http::{Request, Response, StatusCode, HeaderValue};
+use http::{Request, Response, HeaderValue};
 use http::header;
 use std::io::{Read, Write};
-use std::time::Duration;
 use httparse;
-use std::str;
 use serde::{Serialize, Deserialize};
 use serde::de::DeserializeOwned;
 use serde_json;
-use std::io;
 use serde_json::{Value, Map};
-use std::thread::sleep;
+use std::io;
 use std::io::BufReader;
 use std::io::BufRead;
 use std::convert::TryInto;
@@ -24,6 +20,50 @@ pub enum Body {
 
 pub type JsonDict = Map<String, Value>;
 
+
+pub fn send_request<Stream, ResponseBody>(mut stream: Stream, req: Request<Body>) -> Result<Response<ResponseBody>, io::Error>
+    where
+        Stream: Read + Write,
+        ResponseBody: DeserializeOwned,
+    {
+    write_request_head(&mut stream, &req);
+    write_request_body(&mut stream, &req);
+
+    let mut resp_bytes = Vec::new();
+    stream.read_to_end(&mut resp_bytes)?;
+
+    let resp = parse_response(resp_bytes).unwrap();
+    Ok(resp)
+}
+
+pub fn open_raw_stream<Stream>(mut stream: Stream, req: Request<Body>) -> Result<Response<EmptyResponse>, io::Error>
+    where
+        Stream: Read + Write,
+    {
+    write_request_head(&mut stream, &req);
+    write_request_body(&mut stream, &req);
+
+    let response_headers = read_response_headers(&mut stream);
+    let response = parse_response(response_headers).unwrap();
+
+    Ok(response)
+}
+
+
+pub fn send_payload<Stream, Payload>(mut stream: Stream, payload: Payload) -> Result<StreamResult, StreamError>
+    where
+        Stream: Read + Write,
+        Payload: Serialize,
+    {
+
+    let bytes = serde_json::to_vec(&payload).unwrap();
+
+    stream.write_all(&bytes);
+
+    read_stream(stream)
+}
+
+
 #[derive(Debug)]
 pub struct EmptyResponse {}
 
@@ -36,76 +76,53 @@ impl<'de> Deserialize<'de> for EmptyResponse {
     }
 }
 
-
-pub fn send_request<Stream: Read + Write, ResponseBody: DeserializeOwned>(mut stream: Stream, req: Request<Body>) -> Result<Response<ResponseBody>, io::Error> {
-    let head = format!("{} {} {:?}", req.method().as_str(), req.uri().path_and_query().unwrap(), req.version());
-
-    let headers = req.headers()
-        .iter()
-        .map(|(key, value)| format!("{}: {}", key, value.to_str().unwrap()))
-        .collect::<Vec<String>>();
-
-    match req.body() {
-        Body::Empty() => {
-            write!(stream, "{}\n{}\n\n", head, headers.join("\r\n"))
-        },
-
-        Body::Bytes(body) => {
-            write!(stream, "{}\n{}\n\n", head, headers.join("\r\n"));
-            stream.write_all(body)
-        },
-    }?;
-
-    let mut resp_bytes = Vec::new();
-    stream.read_to_end(&mut resp_bytes)?;
-
-    let resp = parse_response(resp_bytes).unwrap();
-    Ok(resp)
+pub fn format_request_line<T>(req: &Request<T>) -> String {
+    format!("{} {} {:?}", req.method(), req.uri().path_and_query().unwrap(), req.version())
 }
 
-pub fn send_attach_request<Stream: Read + Write>(mut stream: Stream, req: Request<Body>) -> Result<Response<EmptyResponse>, io::Error> {
-    let head = format!("{} {} {:?}", req.method().as_str(), req.uri().path_and_query().unwrap(), req.version());
-
-    let headers = req.headers()
+pub fn format_headers<T>(req: &Request<T>) -> String {
+    req.headers()
         .iter()
         .map(|(key, value)| format!("{}: {}", key, value.to_str().unwrap()))
-        .collect::<Vec<String>>();
+        .collect::<Vec<String>>()
+        .join("\r\n")
+}
 
+fn write_request_head<T, W: Write>(mut writer: W, req: &Request<T>) {
+    let request_line = format_request_line(&req);
+    write!(writer, "{}\r\n", request_line);
+
+    let headers = format_headers(&req);
+    write!(writer, "{}\r\n\r\n", headers);
+}
+
+fn write_request_body<W: Write>(mut writer: W, req: &Request<Body>) -> Result<(), io::Error>{
     match req.body() {
         Body::Empty() => {
-            println!("{}\n{}\n\n", head, headers.join("\r\n"));
-            write!(stream, "{}\n{}\n\n", head, headers.join("\r\n"))
-        },
+            Ok(())
+        }
 
         Body::Bytes(body) => {
-            write!(stream, "{}\n{}\n\n", head, headers.join("\r\n"));
-            stream.write_all(body)
-        },
-    }?;
+            writer.write_all(body)
+        }
+    }
+}
 
-    let mut buffered_stream = BufReader::new(stream);
-    let mut resp_bytes = Vec::new();
+fn read_response_headers<R: Read>(mut reader: R) -> Vec<u8> {
+    let mut buffered_reader = BufReader::new(reader);
+    let mut response_headers = Vec::new();
 
     for n in 0..20 {
-        if resp_bytes.ends_with(&[0xD, 0xA, 0xD, 0xA]) {
+        if response_headers.ends_with(&[0xD, 0xA, 0xD, 0xA]) {
             break;
         }
 
-        buffered_stream.read_until(0xA, &mut resp_bytes);
+        buffered_reader.read_until(0xA, &mut response_headers);
     }
 
-    let resp = parse_response(resp_bytes).unwrap();
-
-    Ok(resp)
+    response_headers
 }
 
-pub fn send_payload<Stream: Read + Write, Payload: Serialize>(mut stream: Stream, payload: Payload) -> Result<StreamResult, StreamError> {
-    let bytes = serde_json::to_vec(&payload).unwrap();
-
-    stream.write_all(&bytes);
-
-    read_stream(stream)
-}
 
 #[derive(Debug)]
 enum StreamType {
