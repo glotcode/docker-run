@@ -94,7 +94,7 @@ pub fn send_attach_request<Stream: Read + Write>(mut stream: Stream, req: Reques
         buffered_stream.read_until(0xA, &mut resp_bytes);
     }
 
-    let resp = parse_response_headers(resp_bytes).unwrap();
+    let resp = parse_response(resp_bytes).unwrap();
 
     Ok(resp)
 }
@@ -197,25 +197,6 @@ pub fn parse_response<T: DeserializeOwned>(bytes: Vec<u8>) -> Result<Response<T>
         Ok(httparse::Status::Complete(parsed_len)) => {
             let response_body = serde_json::from_slice(&bytes[parsed_len..]).unwrap();
             Ok(to_http_response(resp, response_body))
-        }
-
-        Ok(httparse::Status::Partial) => {
-            Err(ParseError::PartialParse())
-        }
-
-        Err(err) => {
-            Err(ParseError::Parse(err))
-        }
-    }
-}
-
-pub fn parse_response_headers(bytes: Vec<u8>) -> Result<Response<EmptyResponse>, ParseError> {
-    let mut headers = [httparse::EMPTY_HEADER; 30];
-    let mut resp = httparse::Response::new(&mut headers);
-
-    match resp.parse(&bytes) {
-        Ok(httparse::Status::Complete(parsed_len)) => {
-            Ok(to_http_response(resp, EmptyResponse{}))
         }
 
         Ok(httparse::Status::Partial) => {
