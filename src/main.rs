@@ -64,13 +64,3 @@ struct File {
     name: String,
     content: String,
 }
-
-
-
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "PascalCase")]
-struct DockerVersion {
-    version: String,
-    api_version: String,
-    kernel_version: String,
-}
