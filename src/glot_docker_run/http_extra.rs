@@ -1,5 +1,7 @@
 use http::{Request, Response, HeaderValue};
 use http::header;
+use http::header::CONTENT_LENGTH;
+use http::response;
 use std::io::{Read, Write};
 use httparse;
 use serde::{Serialize, Deserialize};
@@ -29,27 +31,30 @@ pub fn send_request<Stream, ResponseBody>(mut stream: Stream, req: Request<Body>
     write_request_head(&mut stream, &req);
     write_request_body(&mut stream, &req);
 
-    let mut resp_bytes = Vec::new();
-    stream.read_to_end(&mut resp_bytes)?;
+    let mut reader = BufReader::new(stream);
 
-    let resp = parse_response(resp_bytes).unwrap();
-    Ok(resp)
+    let response_head = read_response_head(&mut reader);
+    let response_parts = parse_response_head(response_head).unwrap();
+
+    let empty_content_length = HeaderValue::from_static("0");
+    let content_length_value = response_parts.headers.get(CONTENT_LENGTH).unwrap_or(&empty_content_length);
+    let content_length = content_length_value.to_str().unwrap().parse().unwrap();
+
+    let body : Result<_, io::Error> = if content_length > 0 {
+        let mut buffer = vec![0u8; content_length];
+        let res = reader.read_exact(&mut buffer);
+        Ok(buffer)
+    } else {
+        Ok(vec![])
+    };
+
+    let response_body = serde_json::from_slice(&body.unwrap()).unwrap();
+
+    Ok(Response::from_parts(response_parts, response_body))
 }
 
-pub fn open_raw_stream<Stream>(mut stream: Stream, req: Request<Body>) -> Result<Response<EmptyResponse>, io::Error>
-    where
-        Stream: Read + Write,
-    {
-    write_request_head(&mut stream, &req);
-    write_request_body(&mut stream, &req);
 
-    let response_headers = read_response_headers(&mut stream);
-    let response = parse_response(response_headers).unwrap();
-
-    Ok(response)
-}
-
-
+// TODO: delete this function, serde_json::to_writer, can be done in helper docker::container_attach?
 pub fn send_payload<Stream, Payload>(mut stream: Stream, payload: Payload) -> Result<StreamResult, StreamError>
     where
         Stream: Read + Write,
@@ -106,8 +111,7 @@ fn write_request_body<W: Write>(mut writer: W, req: &Request<Body>) -> Result<()
     }
 }
 
-fn read_response_headers<R: Read>(mut reader: R) -> Vec<u8> {
-    let mut buffered_reader = BufReader::new(reader);
+fn read_response_head<R: BufRead>(mut reader: R) -> Vec<u8> {
     let mut response_headers = Vec::new();
 
     for n in 0..20 {
@@ -115,7 +119,7 @@ fn read_response_headers<R: Read>(mut reader: R) -> Vec<u8> {
             break;
         }
 
-        buffered_reader.read_until(0xA, &mut response_headers);
+        reader.read_until(0xA, &mut response_headers);
     }
 
     response_headers
@@ -149,7 +153,8 @@ pub enum StreamError {
 type StreamResult = Result<Vec<u8>, Vec<u8>>;
 
 
-fn read_stream<R: Read>(mut r: R) -> Result<StreamResult, StreamError> {
+// TODO: move function to docker, this is docker specific stream
+pub fn read_stream<R: Read>(mut r: R) -> Result<StreamResult, StreamError> {
     let mut reader = iowrap::Eof::new(r);
     let mut stdout = Vec::new();
     let mut stderr = Vec::new();
@@ -204,14 +209,14 @@ pub enum ParseError {
     PartialParse(),
 }
 
-pub fn parse_response<T: DeserializeOwned>(bytes: Vec<u8>) -> Result<Response<T>, ParseError> {
+pub fn parse_response_head(bytes: Vec<u8>) -> Result<response::Parts, ParseError> {
     let mut headers = [httparse::EMPTY_HEADER; 30];
     let mut resp = httparse::Response::new(&mut headers);
 
     match resp.parse(&bytes) {
-        Ok(httparse::Status::Complete(parsed_len)) => {
-            let response_body = serde_json::from_slice(&bytes[parsed_len..]).unwrap();
-            Ok(to_http_response(resp, response_body))
+        Ok(httparse::Status::Complete(_)) => {
+            let parts = to_http_parts(resp);
+            Ok(parts)
         }
 
         Ok(httparse::Status::Partial) => {
@@ -224,7 +229,7 @@ pub fn parse_response<T: DeserializeOwned>(bytes: Vec<u8>) -> Result<Response<T>
     }
 }
 
-fn to_http_response<T>(parsed: httparse::Response, body: T) -> Response<T> {
+fn to_http_parts(parsed: httparse::Response) -> response::Parts {
     let mut response = Response::builder();
     let headers = response.headers_mut().unwrap();
 
@@ -236,6 +241,8 @@ fn to_http_response<T>(parsed: httparse::Response, body: T) -> Response<T> {
 
     response
         .status(parsed.code.unwrap_or(0))
-        .body(body)
+        .body(())
         .unwrap()
+        .into_parts()
+        .0
 }

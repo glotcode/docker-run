@@ -31,8 +31,10 @@ fn main() {
     //let start_container_req = docker::start_container("79c5f827cab3ebffcdbd1f210a9825402ebcb87eae14e51950a8972c446c622d");
     //let resp : Result<Response<http_extra::EmptyResponse>, _>= http_extra::send_request(stream, start_container_req);
 
+    //println!("{:?}", docker::version(stream).unwrap());
+
     let attach_container_req = docker::attach_container("79c5f827cab3ebffcdbd1f210a9825402ebcb87eae14e51950a8972c446c622d");
-    let resp : Result<Response<http_extra::EmptyResponse>, _>= http_extra::open_raw_stream(&stream, attach_container_req);
+    let resp : Result<Response<http_extra::EmptyResponse>, _>= http_extra::send_request(&stream, attach_container_req);
 
     println!("{:?}", resp);
 
