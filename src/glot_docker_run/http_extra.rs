@@ -94,30 +94,17 @@ pub fn send_attach_request<Stream: Read + Write>(mut stream: Stream, req: Reques
         buffered_stream.read_until(0xA, &mut resp_bytes);
     }
 
-    println!("finished reading");
-    println!("{:?}", resp_bytes.clone());
-    println!("{}", String::from_utf8(resp_bytes.clone()).unwrap());
     let resp = parse_response_headers(resp_bytes).unwrap();
 
-    let payload = serde_json::to_vec(&Payload{
-        language: "bash".to_string(),
-        files: vec![File{
-            name: "main.sh".to_string(),
-            content: "echo hello".to_string(),
-        }],
-        stdin: "".to_string(),
-        command: "".to_string(),
-    }).unwrap();
-
-    println!("payload: {}", String::from_utf8(payload.clone()).unwrap());
-    stream = buffered_stream.into_inner();
-    stream.write_all(&payload);
-
-    let result = read_stream(stream).unwrap();
-    let foo = String::from_utf8(result.unwrap()).unwrap();
-    println!("run_result: {}", foo);
-
     Ok(resp)
+}
+
+pub fn send_payload<Stream: Read + Write, Payload: Serialize>(mut stream: Stream, payload: Payload) -> Result<StreamResult, StreamError> {
+    let bytes = serde_json::to_vec(&payload).unwrap();
+
+    stream.write_all(&bytes);
+
+    read_stream(stream)
 }
 
 #[derive(Debug)]
@@ -139,7 +126,7 @@ impl StreamType {
 }
 
 #[derive(Debug)]
-enum StreamError {
+pub enum StreamError {
     Read(io::Error),
 }
 
@@ -195,20 +182,6 @@ fn read_stream_length<R: Read>(mut reader: R) -> usize {
     u32::from_be_bytes(buffer).try_into().unwrap()
 }
 
-
-#[derive(Serialize)]
-struct Payload {
-    language: String,
-    files: Vec<File>,
-    stdin: String,
-    command: String,
-}
-
-#[derive(Serialize)]
-struct File {
-    name: String,
-    content: String,
-}
 
 #[derive(Debug)]
 pub enum ParseError {

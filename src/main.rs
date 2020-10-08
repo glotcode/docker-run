@@ -32,10 +32,39 @@ fn main() {
     //let resp : Result<Response<http_extra::EmptyResponse>, _>= http_extra::send_request(stream, start_container_req);
 
     let attach_container_req = docker::attach_container("79c5f827cab3ebffcdbd1f210a9825402ebcb87eae14e51950a8972c446c622d");
-    let resp : Result<Response<http_extra::EmptyResponse>, _>= http_extra::send_attach_request(stream, attach_container_req);
+    let resp : Result<Response<http_extra::EmptyResponse>, _>= http_extra::send_attach_request(&stream, attach_container_req);
 
     println!("{:?}", resp);
+
+    let payload = Payload{
+        language: "bash".to_string(),
+        files: vec![File{
+            name: "main.sh".to_string(),
+            content: "echo hello".to_string(),
+        }],
+        stdin: "".to_string(),
+        command: "".to_string(),
+    };
+
+    let foo = http_extra::send_payload(&stream, payload);
+    println!("{:?}", foo);
 }
+
+// TODO: remove struct, this service should just proxy json from input
+#[derive(Serialize)]
+struct Payload {
+    language: String,
+    files: Vec<File>,
+    stdin: String,
+    command: String,
+}
+
+#[derive(Serialize)]
+struct File {
+    name: String,
+    content: String,
+}
+
 
 
 #[derive(Deserialize, Debug)]
