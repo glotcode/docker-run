@@ -2,6 +2,8 @@ use http;
 use crate::glot_docker_run::http_extra;
 use serde::{Serialize, Deserialize};
 use serde_json;
+use std::io::{Read, Write};
+use std::io;
 
 #[derive(Serialize)]
 #[serde(rename_all = "PascalCase")]
@@ -77,13 +79,26 @@ pub fn default_container_config(image_name: String) -> ContainerConfig {
 }
 
 
-pub fn version() -> http::Request<http_extra::Body> {
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct VersionResponse {
+    version: String,
+    api_version: String,
+    kernel_version: String,
+}
+
+pub fn version_request() -> http::Request<http_extra::Body> {
     http::Request::get("/version")
         .header("Accept", "application/json")
         .header("Host", "127.0.0.1")
         .header("Connection", "close")
         .body(http_extra::Body::Empty())
         .unwrap()
+}
+
+pub fn version<Stream: Read + Write>(mut stream: Stream) -> Result<http::Response<VersionResponse>, io::Error> {
+    let req = version_request();
+    http_extra::send_request(stream, req)
 }
 
 #[derive(Debug, Deserialize)]
