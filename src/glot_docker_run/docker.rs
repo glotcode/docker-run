@@ -118,3 +118,13 @@ pub fn start_container(containerId: &str) -> http::Request<http_extra::Body> {
         .body(http_extra::Body::Empty())
         .unwrap()
 }
+
+
+pub fn attach_container(containerId: &str) -> http::Request<http_extra::Body> {
+    let url = format!("/containers/{}/attach?stream=1&stdout=1&stdin=1&stderr=1", containerId);
+
+    http::Request::post(url)
+        .header("Host", "127.0.0.1")
+        .body(http_extra::Body::Empty())
+        .unwrap()
+}
