@@ -56,9 +56,7 @@ pub fn send_payload<Stream, Payload>(mut stream: Stream, payload: Payload) -> Re
         Payload: Serialize,
     {
 
-    let bytes = serde_json::to_vec(&payload).unwrap();
-
-    stream.write_all(&bytes);
+    serde_json::to_writer(&mut stream, &payload);
 
     read_stream(stream)
 }
