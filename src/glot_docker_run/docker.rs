@@ -9,39 +9,35 @@ use std::convert::TryInto;
 #[derive(Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct ContainerConfig {
-    hostname: String,
-    //domain_name: String,
-    user: String,
-    attach_stdin: bool,
-    attach_stdout: bool,
-    attach_stderr: bool,
-    tty: bool,
-    open_stdin: bool,
-    stdin_once: bool,
-    //cmd: Vec<String>,
-    //entrypoint: Vec<String>,
-    image: String,
-    network_disabled: bool,
-    host_config: HostConfig,
+    pub hostname: String,
+    pub user: String,
+    pub attach_stdin: bool,
+    pub attach_stdout: bool,
+    pub attach_stderr: bool,
+    pub tty: bool,
+    pub open_stdin: bool,
+    pub stdin_once: bool,
+    pub image: String,
+    pub network_disabled: bool,
+    pub host_config: HostConfig,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct HostConfig {
-    //cpu_shared: i32,
-    memory: i64,
-    privileged: bool,
-    cap_add: Vec<String>,
-    cap_drop: Vec<String>,
-    ulimits: Vec<Ulimit>,
+    pub memory: i64,
+    pub privileged: bool,
+    pub cap_add: Vec<String>,
+    pub cap_drop: Vec<String>,
+    pub ulimits: Vec<Ulimit>,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct Ulimit {
-    name: String,
-    soft: i64,
-    hard: i64,
+    pub name: String,
+    pub soft: i64,
+    pub hard: i64,
 }
 
 pub fn default_container_config(image_name: String) -> ContainerConfig {
@@ -83,9 +79,9 @@ pub fn default_container_config(image_name: String) -> ContainerConfig {
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct VersionResponse {
-    version: String,
-    api_version: String,
-    kernel_version: String,
+    pub version: String,
+    pub api_version: String,
+    pub kernel_version: String,
 }
 
 pub fn version_request() -> http::Request<http_extra::Body> {
@@ -105,12 +101,12 @@ pub fn version<Stream: Read + Write>(mut stream: Stream) -> Result<http::Respons
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct ContainerCreatedResponse {
-    id: String,
-    warnings: Vec<String>,
+    pub id: String,
+    pub warnings: Vec<String>,
 }
 
 
-pub fn create_container(config: &ContainerConfig) -> http::Request<http_extra::Body> {
+pub fn create_container_request(config: &ContainerConfig) -> http::Request<http_extra::Body> {
     let body = serde_json::to_vec(config).unwrap();
 
     http::Request::post("/containers/create")
@@ -123,8 +119,13 @@ pub fn create_container(config: &ContainerConfig) -> http::Request<http_extra::B
         .unwrap()
 }
 
+pub fn create_container<Stream: Read + Write>(mut stream: Stream, config: &ContainerConfig) -> Result<http::Response<ContainerCreatedResponse>, io::Error> {
+    let req = create_container_request(config);
+    http_extra::send_request(stream, req)
+}
 
-pub fn start_container(containerId: &str) -> http::Request<http_extra::Body> {
+
+pub fn start_container_request(containerId: &str) -> http::Request<http_extra::Body> {
     let url = format!("/containers/{}/start", containerId);
 
     http::Request::post(url)
@@ -135,6 +136,11 @@ pub fn start_container(containerId: &str) -> http::Request<http_extra::Body> {
         .unwrap()
 }
 
+
+pub fn start_container<Stream: Read + Write>(mut stream: Stream, containerId: &str) -> Result<http::Response<http_extra::EmptyResponse>, io::Error> {
+    let req = start_container_request(containerId);
+    http_extra::send_request(stream, req)
+}
 
 pub fn attach_container_request(containerId: &str) -> http::Request<http_extra::Body> {
     let url = format!("/containers/{}/attach?stream=1&stdout=1&stdin=1&stderr=1", containerId);
