@@ -120,6 +120,7 @@ pub enum ParseError {
 }
 
 pub fn parse_response_head(bytes: Vec<u8>) -> Result<response::Parts, ParseError> {
+    println!("parse_response_head: {:#?}", String::from_utf8(bytes.clone()));
     let mut headers = [httparse::EMPTY_HEADER; 30];
     let mut resp = httparse::Response::new(&mut headers);
 
