@@ -93,7 +93,7 @@ pub fn version_request() -> http::Request<http_extra::Body> {
         .unwrap()
 }
 
-pub fn version<Stream: Read + Write>(mut stream: Stream) -> Result<http::Response<VersionResponse>, io::Error> {
+pub fn version<Stream: Read + Write>(mut stream: Stream) -> Result<http::Response<VersionResponse>, http_extra::Error> {
     let req = version_request();
     http_extra::send_request(stream, req)
 }
@@ -119,7 +119,7 @@ pub fn create_container_request(config: &ContainerConfig) -> http::Request<http_
         .unwrap()
 }
 
-pub fn create_container<Stream: Read + Write>(mut stream: Stream, config: &ContainerConfig) -> Result<http::Response<ContainerCreatedResponse>, io::Error> {
+pub fn create_container<Stream: Read + Write>(mut stream: Stream, config: &ContainerConfig) -> Result<http::Response<ContainerCreatedResponse>, http_extra::Error> {
     let req = create_container_request(config);
     http_extra::send_request(stream, req)
 }
@@ -137,7 +137,7 @@ pub fn start_container_request(containerId: &str) -> http::Request<http_extra::B
 }
 
 
-pub fn start_container<Stream: Read + Write>(mut stream: Stream, containerId: &str) -> Result<http::Response<http_extra::EmptyResponse>, io::Error> {
+pub fn start_container<Stream: Read + Write>(mut stream: Stream, containerId: &str) -> Result<http::Response<http_extra::EmptyResponse>, http_extra::Error> {
     let req = start_container_request(containerId);
     http_extra::send_request(stream, req)
 }
@@ -151,7 +151,7 @@ pub fn attach_container_request(containerId: &str) -> http::Request<http_extra::
         .unwrap()
 }
 
-pub fn attach_container<Stream: Read + Write>(stream: Stream, containerId: &str) -> Result<http::Response<http_extra::EmptyResponse>, io::Error> {
+pub fn attach_container<Stream: Read + Write>(stream: Stream, containerId: &str) -> Result<http::Response<http_extra::EmptyResponse>, http_extra::Error> {
     let req = attach_container_request(containerId);
     http_extra::send_request(stream, req)
 }
