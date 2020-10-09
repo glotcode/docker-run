@@ -11,7 +11,6 @@ use serde_json::{Value, Map};
 use std::io;
 use std::io::BufReader;
 use std::io::BufRead;
-use std::convert::TryInto;
 use iowrap;
 
 
@@ -51,19 +50,6 @@ pub fn send_request<Stream, ResponseBody>(mut stream: Stream, req: Request<Body>
     let response_body = serde_json::from_slice(&body.unwrap()).unwrap();
 
     Ok(Response::from_parts(response_parts, response_body))
-}
-
-
-// TODO: delete this function, serde_json::to_writer, can be done in helper docker::container_attach?
-pub fn send_payload<Stream, Payload>(mut stream: Stream, payload: Payload) -> Result<StreamResult, StreamError>
-    where
-        Stream: Read + Write,
-        Payload: Serialize,
-    {
-
-    serde_json::to_writer(&mut stream, &payload);
-
-    read_stream(stream)
 }
 
 
@@ -125,82 +111,6 @@ fn read_response_head<R: BufRead>(mut reader: R) -> Vec<u8> {
     response_headers
 }
 
-
-#[derive(Debug)]
-enum StreamType {
-    Stdin(),
-    Stdout(),
-    Stderr(),
-}
-
-impl StreamType {
-    fn from_byte(n: u8) -> Option<StreamType> {
-        match n {
-            0 => Some(StreamType::Stdin()),
-            1 => Some(StreamType::Stdout()),
-            2 => Some(StreamType::Stderr()),
-            _ => None,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum StreamError {
-    Read(io::Error),
-}
-
-
-type StreamResult = Result<Vec<u8>, Vec<u8>>;
-
-
-// TODO: move function to docker, this is docker specific stream
-pub fn read_stream<R: Read>(mut r: R) -> Result<StreamResult, StreamError> {
-    let mut reader = iowrap::Eof::new(r);
-    let mut stdout = Vec::new();
-    let mut stderr = Vec::new();
-
-    while !reader.eof().map_err(StreamError::Read)? {
-        let stream_type = read_stream_type(&mut reader);
-        let stream_length = read_stream_length(&mut reader);
-
-        let mut buffer = vec![0u8; stream_length];
-        reader.read_exact(&mut buffer);
-
-        match stream_type {
-            StreamType::Stdin() => {
-
-            }
-
-            StreamType::Stdout() => {
-                stdout.append(&mut buffer);
-            }
-
-            StreamType::Stderr() => {
-                stderr.append(&mut buffer);
-            }
-        }
-    }
-
-    if stderr.len() > 0 {
-        Ok(Err(stderr))
-    } else {
-        Ok(Ok(stdout))
-    }
-}
-
-fn read_stream_type<R: Read>(mut reader: R) -> StreamType {
-    let mut buffer = [0; 4];
-    reader.read_exact(&mut buffer);
-
-    StreamType::from_byte(buffer[0]).unwrap()
-}
-
-fn read_stream_length<R: Read>(mut reader: R) -> usize {
-    let mut buffer = [0; 4];
-    reader.read_exact(&mut buffer);
-
-    u32::from_be_bytes(buffer).try_into().unwrap()
-}
 
 
 #[derive(Debug)]

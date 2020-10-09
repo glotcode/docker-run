@@ -33,11 +33,6 @@ fn main() {
 
     //println!("{:?}", docker::version(stream).unwrap());
 
-    let attach_container_req = docker::attach_container("79c5f827cab3ebffcdbd1f210a9825402ebcb87eae14e51950a8972c446c622d");
-    let resp : Result<Response<http_extra::EmptyResponse>, _>= http_extra::send_request(&stream, attach_container_req);
-
-    println!("{:?}", resp);
-
     let payload = Payload{
         language: "bash".to_string(),
         files: vec![File{
@@ -48,7 +43,7 @@ fn main() {
         command: "".to_string(),
     };
 
-    let foo = http_extra::send_payload(&stream, payload);
+    let foo = docker::attach_and_send_payload(&stream, "79c5f827cab3ebffcdbd1f210a9825402ebcb87eae14e51950a8972c446c622d", payload);
     println!("{:?}", foo);
 }
 

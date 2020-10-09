@@ -4,6 +4,7 @@ use serde::{Serialize, Deserialize};
 use serde_json;
 use std::io::{Read, Write};
 use std::io;
+use std::convert::TryInto;
 
 #[derive(Serialize)]
 #[serde(rename_all = "PascalCase")]
@@ -135,7 +136,7 @@ pub fn start_container(containerId: &str) -> http::Request<http_extra::Body> {
 }
 
 
-pub fn attach_container(containerId: &str) -> http::Request<http_extra::Body> {
+pub fn attach_container_request(containerId: &str) -> http::Request<http_extra::Body> {
     let url = format!("/containers/{}/attach?stream=1&stdout=1&stdin=1&stderr=1", containerId);
 
     http::Request::post(url)
@@ -143,3 +144,104 @@ pub fn attach_container(containerId: &str) -> http::Request<http_extra::Body> {
         .body(http_extra::Body::Empty())
         .unwrap()
 }
+
+pub fn attach_container<Stream: Read + Write>(stream: Stream, containerId: &str) -> Result<http::Response<http_extra::EmptyResponse>, io::Error> {
+    let req = attach_container_request(containerId);
+    http_extra::send_request(stream, req)
+}
+
+// TODO: this is a glot specific function
+pub fn attach_and_send_payload<Stream, Payload>(mut stream: Stream, containerId: &str, payload: Payload) -> Result<StreamResult, StreamError>
+    where
+        Stream: Read + Write,
+        Payload: Serialize,
+    {
+
+    attach_container(&mut stream, containerId);
+
+    // Send payload
+    serde_json::to_writer(&mut stream, &payload);
+
+    // Read response
+    read_stream(stream)
+}
+
+
+
+#[derive(Debug)]
+pub enum StreamError {
+    Read(io::Error),
+}
+
+
+type StreamResult = Result<Vec<u8>, Vec<u8>>;
+
+
+pub fn read_stream<R: Read>(mut r: R) -> Result<StreamResult, StreamError> {
+    let mut reader = iowrap::Eof::new(r);
+    let mut stdout = Vec::new();
+    let mut stderr = Vec::new();
+
+    while !reader.eof().map_err(StreamError::Read)? {
+        let stream_type = read_stream_type(&mut reader);
+        let stream_length = read_stream_length(&mut reader);
+
+        let mut buffer = vec![0u8; stream_length];
+        reader.read_exact(&mut buffer);
+
+        match stream_type {
+            StreamType::Stdin() => {
+
+            }
+
+            StreamType::Stdout() => {
+                stdout.append(&mut buffer);
+            }
+
+            StreamType::Stderr() => {
+                stderr.append(&mut buffer);
+            }
+        }
+    }
+
+    if stderr.len() > 0 {
+        Ok(Err(stderr))
+    } else {
+        Ok(Ok(stdout))
+    }
+}
+
+
+#[derive(Debug)]
+enum StreamType {
+    Stdin(),
+    Stdout(),
+    Stderr(),
+}
+
+impl StreamType {
+    fn from_byte(n: u8) -> Option<StreamType> {
+        match n {
+            0 => Some(StreamType::Stdin()),
+            1 => Some(StreamType::Stdout()),
+            2 => Some(StreamType::Stderr()),
+            _ => None,
+        }
+    }
+}
+
+fn read_stream_type<R: Read>(mut reader: R) -> StreamType {
+    let mut buffer = [0; 4];
+    reader.read_exact(&mut buffer);
+
+    StreamType::from_byte(buffer[0]).unwrap()
+}
+
+fn read_stream_length<R: Read>(mut reader: R) -> usize {
+    let mut buffer = [0; 4];
+    reader.read_exact(&mut buffer);
+
+    u32::from_be_bytes(buffer).try_into().unwrap()
+}
+
+
