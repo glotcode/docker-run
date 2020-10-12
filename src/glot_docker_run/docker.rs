@@ -177,24 +177,6 @@ pub fn attach_container<Stream: Read + Write>(stream: Stream, containerId: &str)
         .map_err(Error::SendRequest)
 }
 
-// TODO: this is a glot specific function
-pub fn attach_and_send_payload<Stream, Payload>(mut stream: Stream, containerId: &str, payload: Payload) -> Result<StreamResult, StreamError>
-    where
-        Stream: Read + Write,
-        Payload: Serialize,
-    {
-
-    attach_container(&mut stream, containerId);
-
-    // Send payload
-    serde_json::to_writer(&mut stream, &payload);
-
-    // Read response
-    read_stream(stream)
-}
-
-
-
 #[derive(Debug)]
 pub enum StreamError {
     Read(io::Error),
@@ -205,11 +187,17 @@ pub enum StreamError {
 }
 
 
-type StreamResult = Result<Vec<u8>, Vec<u8>>;
+#[derive(Debug)]
+pub struct StreamOutput {
+    pub stdin: Vec<u8>,
+    pub stdout: Vec<u8>,
+    pub stderr: Vec<u8>,
+}
 
 
-pub fn read_stream<R: Read>(mut r: R) -> Result<StreamResult, StreamError> {
+pub fn read_stream<R: Read>(mut r: R) -> Result<StreamOutput, StreamError> {
     let mut reader = iowrap::Eof::new(r);
+    let mut stdin = Vec::new();
     let mut stdout = Vec::new();
     let mut stderr = Vec::new();
 
@@ -223,7 +211,7 @@ pub fn read_stream<R: Read>(mut r: R) -> Result<StreamResult, StreamError> {
 
         match stream_type {
             StreamType::Stdin() => {
-
+                stdin.append(&mut buffer);
             }
 
             StreamType::Stdout() => {
@@ -236,11 +224,11 @@ pub fn read_stream<R: Read>(mut r: R) -> Result<StreamResult, StreamError> {
         }
     }
 
-    if stderr.len() > 0 {
-        Ok(Err(stderr))
-    } else {
-        Ok(Ok(stdout))
-    }
+    Ok(StreamOutput{
+        stdin: stdin,
+        stdout: stdout,
+        stderr: stderr,
+    })
 }
 
 

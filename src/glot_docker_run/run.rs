@@ -22,7 +22,9 @@ pub enum Error {
     SetStreamTimeout(io::Error),
     CreateContainer(docker::Error),
     StartContainer(docker::Error),
-    AttachStream(docker::StreamError),
+    AttachContainer(docker::Error),
+    SerializePayload(serde_json::Error),
+    ReadStream(docker::StreamError),
 }
 
 
@@ -42,8 +44,7 @@ pub fn run<Payload: Serialize>(path: &Path, config: &docker::ContainerConfig, pa
     })?;
 
     let result = with_unixstream(&path, |stream| {
-        docker::attach_and_send_payload(stream, &containerId, payload)
-            .map_err(Error::AttachStream)
+        run_code(stream, &containerId, payload)
     })?;
 
 
@@ -51,6 +52,27 @@ pub fn run<Payload: Serialize>(path: &Path, config: &docker::ContainerConfig, pa
 
     Ok(())
 }
+
+pub fn run_code<Stream, Payload>(mut stream: Stream, containerId: &str, payload: Payload) -> Result<docker::StreamOutput, Error>
+    where
+        Stream: Read + Write,
+        Payload: Serialize,
+    {
+
+    docker::attach_container(&mut stream, containerId)
+        .map_err(Error::AttachContainer)?;
+
+    // Send payload
+    serde_json::to_writer(&mut stream, &payload)
+        .map_err(Error::SerializePayload);
+
+    // Read response
+    docker::read_stream(stream)
+        .map_err(Error::ReadStream)
+}
+
+
+
 
 
 fn with_unixstream<F, T>(path: &Path, f: F) -> Result<T, Error>
