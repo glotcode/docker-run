@@ -195,6 +195,7 @@ pub struct StreamOutput {
 }
 
 
+// TODO: add config for max read limit
 pub fn read_stream<R: Read>(mut r: R) -> Result<StreamOutput, StreamError> {
     let mut reader = iowrap::Eof::new(r);
     let mut stdin = Vec::new();

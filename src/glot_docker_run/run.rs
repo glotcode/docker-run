@@ -29,7 +29,7 @@ pub enum Error {
 
 
 
-pub fn run<Payload: Serialize>(path: &Path, config: &docker::ContainerConfig, payload: &Payload) -> Result<(), Error> {
+pub fn run<Payload: Serialize>(path: &Path, config: &docker::ContainerConfig, payload: &Payload) -> Result<RunResult, Error> {
 
     let container_response = with_unixstream(&path, |stream| {
         docker::create_container(stream, config)
@@ -43,17 +43,12 @@ pub fn run<Payload: Serialize>(path: &Path, config: &docker::ContainerConfig, pa
             .map_err(Error::StartContainer)
     })?;
 
-    let result = with_unixstream(&path, |stream| {
+    with_unixstream(&path, |stream| {
         run_code(stream, &containerId, payload)
-    })?;
-
-
-    println!("{:?}", result);
-
-    Ok(())
+    })
 }
 
-pub fn run_code<Stream, Payload>(mut stream: Stream, containerId: &str, payload: Payload) -> Result<docker::StreamOutput, Error>
+pub fn run_code<Stream, Payload>(mut stream: Stream, containerId: &str, payload: Payload) -> Result<RunResult, Error>
     where
         Stream: Read + Write,
         Payload: Serialize,
@@ -67,12 +62,41 @@ pub fn run_code<Stream, Payload>(mut stream: Stream, containerId: &str, payload:
         .map_err(Error::SerializePayload);
 
     // Read response
-    docker::read_stream(stream)
-        .map_err(Error::ReadStream)
+    let output = docker::read_stream(stream)
+        .map_err(Error::ReadStream)?;
+
+    Ok(run_result_from_stream_output(output))
 }
 
 
+#[derive(Debug)]
+pub enum RunResult {
+    Success(Map<String, Value>),
+    Failure(RunFailure),
+}
 
+#[derive(Debug)]
+pub enum RunFailure {
+    UnexpectedStdin(Vec<u8>),
+    UnexpectedStderr(Vec<u8>),
+    StdoutDecode(serde_json::Error),
+}
+
+fn run_result_from_stream_output(output: docker::StreamOutput) -> RunResult {
+    if output.stdin.len() > 0 {
+        RunResult::Failure(RunFailure::UnexpectedStdin(output.stdin))
+    } else if (output.stderr.len() > 0) {
+        RunResult::Failure(RunFailure::UnexpectedStderr(output.stderr))
+    } else {
+        match decode_dict(&output.stdout) {
+            Ok(json_dict) =>
+                RunResult::Success(json_dict),
+
+            Err(err) =>
+                RunResult::Failure(RunFailure::StdoutDecode(err)),
+        }
+    }
+}
 
 
 fn with_unixstream<F, T>(path: &Path, f: F) -> Result<T, Error>
@@ -95,4 +119,9 @@ fn with_unixstream<F, T>(path: &Path, f: F) -> Result<T, Error>
     stream.shutdown(Shutdown::Both);
 
     Ok(result)
+}
+
+
+fn decode_dict(data: &[u8]) -> Result<Map<String, Value>, serde_json::Error> {
+    serde_json::from_slice(data)
 }

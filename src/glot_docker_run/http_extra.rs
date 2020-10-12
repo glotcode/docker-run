@@ -20,8 +20,6 @@ pub enum Body {
     Bytes(Vec<u8>),
 }
 
-pub type JsonDict = Map<String, Value>;
-
 
 #[derive(Debug)]
 pub enum Error {
