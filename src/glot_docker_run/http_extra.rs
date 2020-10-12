@@ -28,6 +28,8 @@ pub enum Error {
     WriteRequest(io::Error),
     ReadResponse(io::Error),
     ParseResponse(ParseError),
+    ReadBody(io::Error),
+    DeserializeBody(serde_json::Error),
 }
 
 pub fn send_request<Stream, ResponseBody>(mut stream: Stream, req: Request<Body>) -> Result<Response<ResponseBody>, Error>
@@ -49,21 +51,37 @@ pub fn send_request<Stream, ResponseBody>(mut stream: Stream, req: Request<Body>
     let response_parts = parse_response_head(response_head)
         .map_err(Error::ParseResponse)?;
 
-    let empty_content_length = header::HeaderValue::from_static("0");
-    let content_length_value = response_parts.headers.get(CONTENT_LENGTH).unwrap_or(&empty_content_length);
-    let content_length = content_length_value.to_str().unwrap().parse().unwrap();
+    let content_length = get_content_length(&response_parts.headers);
 
-    let body : Result<_, io::Error> = if content_length > 0 {
+    let raw_body = read_response_body(content_length, reader)
+        .map_err(Error::ReadBody)?;
+
+    let body = serde_json::from_slice(&raw_body)
+        .map_err(Error::DeserializeBody)?;
+
+    Ok(Response::from_parts(response_parts, body))
+}
+
+fn get_content_length(headers: &header::HeaderMap<header::HeaderValue>) -> usize {
+    headers.get(CONTENT_LENGTH)
+        .map(|value| {
+            value
+                .to_str()
+                .unwrap_or("")
+                .parse()
+                .unwrap_or(0)
+        })
+        .unwrap_or(0)
+}
+
+fn read_response_body<R: BufRead>(content_length: usize, mut reader: R) -> Result<Vec<u8>, io::Error>{
+    if content_length > 0 {
         let mut buffer = vec![0u8; content_length];
-        let res = reader.read_exact(&mut buffer);
+        reader.read_exact(&mut buffer)?;
         Ok(buffer)
     } else {
         Ok(vec![])
-    };
-
-    let response_body = serde_json::from_slice(&body.unwrap()).unwrap();
-
-    Ok(Response::from_parts(response_parts, response_body))
+    }
 }
 
 
@@ -88,10 +106,10 @@ pub fn format_request_line<T>(req: &Request<T>) -> String {
     format!("{} {} {:?}", req.method(), path, req.version())
 }
 
-pub fn format_headers<T>(req: &Request<T>) -> String {
+pub fn format_request_headers<T>(req: &Request<T>) -> String {
     req.headers()
         .iter()
-        .map(|(key, value)| format!("{}: {}", key, value.to_str().unwrap()))
+        .map(|(key, value)| format!("{}: {}", key, value.to_str().unwrap_or("")))
         .collect::<Vec<String>>()
         .join("\r\n")
 }
@@ -100,7 +118,7 @@ fn write_request_head<T, W: Write>(mut writer: W, req: &Request<T>) -> Result<()
     let request_line = format_request_line(&req);
     write!(writer, "{}\r\n", request_line)?;
 
-    let headers = format_headers(&req);
+    let headers = format_request_headers(&req);
     write!(writer, "{}\r\n\r\n", headers)
 }
 
@@ -167,6 +185,7 @@ pub fn parse_response_head(bytes: Vec<u8>) -> Result<response::Parts, ParseError
 
 #[derive(Debug)]
 enum ResponseError {
+    InvalidBuilder(),
     HeaderName(header::InvalidHeaderName),
     HeaderValue(header::InvalidHeaderValue),
     StatusCode(),
@@ -175,7 +194,8 @@ enum ResponseError {
 
 fn to_http_parts(parsed: httparse::Response) -> Result<response::Parts, ResponseError> {
     let mut response = Response::builder();
-    let headers = response.headers_mut().unwrap();
+    let headers = response.headers_mut()
+        .ok_or(ResponseError::InvalidBuilder())?;
 
     for hdr in parsed.headers.iter() {
         let name = header::HeaderName::from_str(hdr.name)
