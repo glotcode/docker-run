@@ -13,6 +13,7 @@ use serde::{Serialize, Deserialize};
 use serde::de::DeserializeOwned;
 use serde_json::{Value, Map};
 use serde_json;
+use std::path::Path;
 
 use glot_docker_run::http_extra;
 use glot_docker_run::docker;
@@ -20,9 +21,6 @@ use glot_docker_run::run;
 
 
 fn main() {
-    let mut stream = UnixStream::connect("/Users/pii/Library/Containers/com.docker.docker/Data/docker.raw.sock").unwrap();
-    stream.set_read_timeout(Some(Duration::new(10, 0)));
-
     let payload = Payload{
         language: "bash".to_string(),
         files: vec![File{
@@ -35,7 +33,9 @@ fn main() {
 
     let config = docker::default_container_config("glot/bash:latest".to_string());
 
-    run::run(&stream, &config, &payload);
+    let path = Path::new("/Users/pii/Library/Containers/com.docker.docker/Data/docker.raw.sock");
+    let res = run::run(&path, &config, &payload);
+    println!("{:?}", res);
 }
 
 // TODO: remove struct, this service should just proxy json from input
