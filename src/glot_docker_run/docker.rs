@@ -75,6 +75,18 @@ pub fn default_container_config(image_name: String) -> ContainerConfig {
     }
 }
 
+#[derive(Debug)]
+pub enum Error {
+    BuildRequest(BuildRequestError),
+    SendRequest(http_extra::Error),
+}
+
+#[derive(Debug)]
+pub enum BuildRequestError {
+    Body(serde_json::Error),
+    Request(http::Error),
+}
+
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "PascalCase")]
@@ -84,18 +96,20 @@ pub struct VersionResponse {
     pub kernel_version: String,
 }
 
-pub fn version_request() -> http::Request<http_extra::Body> {
+pub fn version_request() -> Result<http::Request<http_extra::Body>, http::Error> {
     http::Request::get("/version")
         .header("Accept", "application/json")
         .header("Host", "127.0.0.1")
         .header("Connection", "close")
         .body(http_extra::Body::Empty())
-        .unwrap()
 }
 
-pub fn version<Stream: Read + Write>(mut stream: Stream) -> Result<http::Response<VersionResponse>, http_extra::Error> {
-    let req = version_request();
+pub fn version<Stream: Read + Write>(mut stream: Stream) -> Result<http::Response<VersionResponse>, Error> {
+    let req = version_request()
+        .map_err(|x| Error::BuildRequest(BuildRequestError::Request(x)))?;
+
     http_extra::send_request(stream, req)
+        .map_err(Error::SendRequest)
 }
 
 #[derive(Debug, Deserialize)]
@@ -105,9 +119,9 @@ pub struct ContainerCreatedResponse {
     pub warnings: Vec<String>,
 }
 
-
-pub fn create_container_request(config: &ContainerConfig) -> http::Request<http_extra::Body> {
-    let body = serde_json::to_vec(config).unwrap();
+pub fn create_container_request(config: &ContainerConfig) -> Result<http::Request<http_extra::Body>, BuildRequestError> {
+    let body = serde_json::to_vec(config)
+        .map_err(BuildRequestError::Body)?;
 
     http::Request::post("/containers/create")
         .header("Content-Type", "application/json")
@@ -116,16 +130,19 @@ pub fn create_container_request(config: &ContainerConfig) -> http::Request<http_
         .header("Content-Length", body.len())
         .header("Connection", "close")
         .body(http_extra::Body::Bytes(body))
-        .unwrap()
+        .map_err(BuildRequestError::Request)
 }
 
-pub fn create_container<Stream: Read + Write>(mut stream: Stream, config: &ContainerConfig) -> Result<http::Response<ContainerCreatedResponse>, http_extra::Error> {
-    let req = create_container_request(config);
+pub fn create_container<Stream: Read + Write>(mut stream: Stream, config: &ContainerConfig) -> Result<http::Response<ContainerCreatedResponse>, Error> {
+    let req = create_container_request(config)
+        .map_err(Error::BuildRequest)?;
+
     http_extra::send_request(stream, req)
+        .map_err(Error::SendRequest)
 }
 
 
-pub fn start_container_request(containerId: &str) -> http::Request<http_extra::Body> {
+pub fn start_container_request(containerId: &str) -> Result<http::Request<http_extra::Body>, http::Error> {
     let url = format!("/containers/{}/start", containerId);
 
     http::Request::post(url)
@@ -133,27 +150,31 @@ pub fn start_container_request(containerId: &str) -> http::Request<http_extra::B
         .header("Host", "127.0.0.1")
         .header("Connection", "close")
         .body(http_extra::Body::Empty())
-        .unwrap()
 }
 
 
-pub fn start_container<Stream: Read + Write>(mut stream: Stream, containerId: &str) -> Result<http::Response<http_extra::EmptyResponse>, http_extra::Error> {
-    let req = start_container_request(containerId);
+pub fn start_container<Stream: Read + Write>(mut stream: Stream, containerId: &str) -> Result<http::Response<http_extra::EmptyResponse>, Error> {
+    let req = start_container_request(containerId)
+        .map_err(|x| Error::BuildRequest(BuildRequestError::Request(x)))?;
+
     http_extra::send_request(stream, req)
+        .map_err(Error::SendRequest)
 }
 
-pub fn attach_container_request(containerId: &str) -> http::Request<http_extra::Body> {
+pub fn attach_container_request(containerId: &str) -> Result<http::Request<http_extra::Body>, http::Error> {
     let url = format!("/containers/{}/attach?stream=1&stdout=1&stdin=1&stderr=1", containerId);
 
     http::Request::post(url)
         .header("Host", "127.0.0.1")
         .body(http_extra::Body::Empty())
-        .unwrap()
 }
 
-pub fn attach_container<Stream: Read + Write>(stream: Stream, containerId: &str) -> Result<http::Response<http_extra::EmptyResponse>, http_extra::Error> {
-    let req = attach_container_request(containerId);
+pub fn attach_container<Stream: Read + Write>(stream: Stream, containerId: &str) -> Result<http::Response<http_extra::EmptyResponse>, Error> {
+    let req = attach_container_request(containerId)
+        .map_err(|x| Error::BuildRequest(BuildRequestError::Request(x)))?;
+
     http_extra::send_request(stream, req)
+        .map_err(Error::SendRequest)
 }
 
 // TODO: this is a glot specific function
