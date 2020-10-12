@@ -177,6 +177,10 @@ pub fn attach_and_send_payload<Stream, Payload>(mut stream: Stream, containerId:
 #[derive(Debug)]
 pub enum StreamError {
     Read(io::Error),
+    ReadStreamType(io::Error),
+    UnknownStreamType(u8),
+    ReadStreamLength(io::Error),
+    InvalidStreamLength(<usize as std::convert::TryFrom<u32>>::Error),
 }
 
 
@@ -189,11 +193,12 @@ pub fn read_stream<R: Read>(mut r: R) -> Result<StreamResult, StreamError> {
     let mut stderr = Vec::new();
 
     while !reader.eof().map_err(StreamError::Read)? {
-        let stream_type = read_stream_type(&mut reader);
-        let stream_length = read_stream_length(&mut reader);
+        let stream_type = read_stream_type(&mut reader)?;
+        let stream_length = read_stream_length(&mut reader)?;
 
         let mut buffer = vec![0u8; stream_length];
-        reader.read_exact(&mut buffer);
+        reader.read_exact(&mut buffer)
+            .map_err(StreamError::Read);
 
         match stream_type {
             StreamType::Stdin() => {
@@ -236,18 +241,21 @@ impl StreamType {
     }
 }
 
-fn read_stream_type<R: Read>(mut reader: R) -> StreamType {
+fn read_stream_type<R: Read>(mut reader: R) -> Result<StreamType, StreamError> {
     let mut buffer = [0; 4];
-    reader.read_exact(&mut buffer);
+    reader.read_exact(&mut buffer)
+        .map_err(StreamError::ReadStreamType)?;
 
-    StreamType::from_byte(buffer[0]).unwrap()
+    StreamType::from_byte(buffer[0])
+        .ok_or(StreamError::UnknownStreamType(buffer[0]))
 }
 
-fn read_stream_length<R: Read>(mut reader: R) -> usize {
+fn read_stream_length<R: Read>(mut reader: R) -> Result<usize, StreamError> {
     let mut buffer = [0; 4];
-    reader.read_exact(&mut buffer);
+    reader.read_exact(&mut buffer)
+        .map_err(StreamError::ReadStreamLength)?;
 
-    u32::from_be_bytes(buffer).try_into().unwrap()
+    u32::from_be_bytes(buffer)
+        .try_into()
+        .map_err(StreamError::InvalidStreamLength)
 }
-
-
