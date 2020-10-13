@@ -161,6 +161,25 @@ pub fn start_container<Stream: Read + Write>(mut stream: Stream, containerId: &s
         .map_err(Error::SendRequest)
 }
 
+pub fn remove_container_request(containerId: &str) -> Result<http::Request<http_extra::Body>, http::Error> {
+    let url = format!("/containers/{}?v=1&force=1", containerId);
+
+    http::Request::delete(url)
+        .header("Accept", "application/json")
+        .header("Host", "127.0.0.1")
+        .header("Connection", "close")
+        .body(http_extra::Body::Empty())
+}
+
+
+pub fn remove_container<Stream: Read + Write>(mut stream: Stream, containerId: &str) -> Result<http::Response<http_extra::EmptyResponse>, Error> {
+    let req = remove_container_request(containerId)
+        .map_err(|x| Error::BuildRequest(BuildRequestError::Request(x)))?;
+
+    http_extra::send_request(stream, req)
+        .map_err(Error::SendRequest)
+}
+
 pub fn attach_container_request(containerId: &str) -> Result<http::Request<http_extra::Body>, http::Error> {
     let url = format!("/containers/{}/attach?stream=1&stdout=1&stdin=1&stderr=1", containerId);
 

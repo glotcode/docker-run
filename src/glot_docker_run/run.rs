@@ -43,9 +43,16 @@ pub fn run<Payload: Serialize>(path: &Path, config: &docker::ContainerConfig, pa
             .map_err(Error::StartContainer)
     })?;
 
-    with_unixstream(&path, |stream| {
+    let run_result = with_unixstream(&path, |stream| {
         run_code(stream, &containerId, payload)
-    })
+    });
+
+    with_unixstream(&path, |stream| {
+        let _ = docker::remove_container(stream, &containerId);
+        Ok(())
+    });
+
+    run_result
 }
 
 pub fn run_code<Stream, Payload>(mut stream: Stream, containerId: &str, payload: Payload) -> Result<RunResult, Error>
