@@ -11,6 +11,10 @@ use std::io::BufRead;
 use std::str::FromStr;
 
 
+const CARRIAGE_RETURN: u8 = 0xD;
+const LINE_FEED: u8 = 0xA;
+
+
 pub enum Body {
     Empty(),
     Bytes(Vec<u8>),
@@ -128,15 +132,16 @@ fn write_request_body<W: Write>(mut writer: W, req: &Request<Body>) -> Result<()
     }
 }
 
+
 fn read_response_head<R: BufRead>(mut reader: R) -> Result<Vec<u8>, io::Error> {
     let mut response_headers = Vec::new();
 
     for _ in 0..20 {
-        if response_headers.ends_with(&[0xD, 0xA, 0xD, 0xA]) {
+        if response_headers.ends_with(&[CARRIAGE_RETURN, LINE_FEED, CARRIAGE_RETURN, LINE_FEED]) {
             break;
         }
 
-        reader.read_until(0xA, &mut response_headers)?;
+        reader.read_until(LINE_FEED, &mut response_headers)?;
     }
 
     Ok(response_headers)
