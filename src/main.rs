@@ -32,11 +32,28 @@ fn main() {
     };
 
     let config = docker::default_container_config("glot/bash:latest".to_string());
-
     let path = Path::new("/Users/pii/Library/Containers/com.docker.docker/Data/docker.raw.sock");
-    let res = run::run(&path, &config, &payload);
+
+    let unixstream_config = run::UnixStreamConfig{
+        path: path.to_path_buf(),
+        read_timeout: Duration::from_secs(3),
+        write_timeout: Duration::from_secs(3),
+    };
+
+    let res = run::run(unixstream_config, run::RunRequest{
+        container_config: config,
+        payload: payload,
+        limits: run::Limits{
+            max_execution_time: Duration::from_secs(30),
+            max_output_size: 100000,
+        },
+    });
     println!("{:?}", res);
 }
+
+
+
+
 
 // TODO: remove struct, this service should just proxy json from input
 #[derive(Serialize)]

@@ -6,7 +6,7 @@ use std::io::{Read, Write};
 use std::io;
 use std::convert::TryInto;
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct ContainerConfig {
     pub hostname: String,
@@ -22,7 +22,7 @@ pub struct ContainerConfig {
     pub host_config: HostConfig,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct HostConfig {
     pub memory: i64,
@@ -32,7 +32,7 @@ pub struct HostConfig {
     pub ulimits: Vec<Ulimit>,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct Ulimit {
     pub name: String,
