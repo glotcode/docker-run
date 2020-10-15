@@ -3,16 +3,12 @@ use http::header;
 use http::header::CONTENT_LENGTH;
 use http::response;
 use std::io::{Read, Write};
-use httparse;
-use serde::{Serialize, Deserialize};
+use serde::Deserialize;
 use serde::de::DeserializeOwned;
-use serde_json;
-use serde_json::{Value, Map};
 use std::io;
 use std::io::BufReader;
 use std::io::BufRead;
 use std::str::FromStr;
-use iowrap;
 
 
 pub enum Body {
@@ -135,7 +131,7 @@ fn write_request_body<W: Write>(mut writer: W, req: &Request<Body>) -> Result<()
 fn read_response_head<R: BufRead>(mut reader: R) -> Result<Vec<u8>, io::Error> {
     let mut response_headers = Vec::new();
 
-    for n in 0..20 {
+    for _ in 0..20 {
         if response_headers.ends_with(&[0xD, 0xA, 0xD, 0xA]) {
             break;
         }
@@ -168,7 +164,7 @@ pub fn parse_response_head(bytes: Vec<u8>) -> Result<response::Parts, ParseError
         }
 
         Ok(httparse::Status::Partial) => {
-            if bytes.len() == 0 {
+            if bytes.is_empty() {
                 Err(ParseError::Empty())
             } else {
                 Err(ParseError::Partial())
@@ -182,7 +178,7 @@ pub fn parse_response_head(bytes: Vec<u8>) -> Result<response::Parts, ParseError
 }
 
 #[derive(Debug)]
-enum ResponseError {
+pub enum ResponseError {
     InvalidBuilder(),
     HeaderName(header::InvalidHeaderName),
     HeaderValue(header::InvalidHeaderValue),
@@ -191,8 +187,8 @@ enum ResponseError {
 }
 
 fn to_http_parts(parsed: httparse::Response) -> Result<response::Parts, ResponseError> {
-    let mut response = Response::builder();
-    let headers = response.headers_mut()
+    let mut builder = Response::builder();
+    let headers = builder.headers_mut()
         .ok_or(ResponseError::InvalidBuilder())?;
 
     for hdr in parsed.headers.iter() {
@@ -208,8 +204,8 @@ fn to_http_parts(parsed: httparse::Response) -> Result<response::Parts, Response
     let code = parsed.code
         .ok_or(ResponseError::StatusCode())?;
 
-    let foo = response.status(code).body(())
+    let response = builder.status(code).body(())
         .map_err(ResponseError::Builder)?;
 
-    Ok(foo.into_parts().0)
+    Ok(response.into_parts().0)
 }

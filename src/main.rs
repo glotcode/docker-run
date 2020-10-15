@@ -1,21 +1,11 @@
-#![allow(warnings)]
+#![allow(dead_code)]
 
 mod glot_docker_run;
 
-use std::os::unix::net::UnixStream;
-use http::{Request, Response, StatusCode, HeaderValue};
-use http::header;
-use std::io::{Read, Write};
 use std::time::Duration;
-use httparse;
-use std::str;
-use serde::{Serialize, Deserialize};
-use serde::de::DeserializeOwned;
-use serde_json::{Value, Map};
-use serde_json;
+use serde::Serialize;
 use std::path::Path;
 
-use glot_docker_run::http_extra;
 use glot_docker_run::docker;
 use glot_docker_run::run;
 
@@ -42,7 +32,7 @@ fn main() {
 
     let res = run::run(unixstream_config, run::RunRequest{
         container_config: config,
-        payload: payload,
+        payload,
         limits: run::Limits{
             max_execution_time: Duration::from_secs(30),
             max_output_size: 100000,

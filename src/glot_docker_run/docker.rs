@@ -1,7 +1,5 @@
-use http;
 use crate::glot_docker_run::http_extra;
 use serde::{Serialize, Deserialize};
-use serde_json;
 use std::io::{Read, Write};
 use std::io;
 use std::convert::TryInto;
@@ -104,7 +102,7 @@ pub fn version_request() -> Result<http::Request<http_extra::Body>, http::Error>
         .body(http_extra::Body::Empty())
 }
 
-pub fn version<Stream: Read + Write>(mut stream: Stream) -> Result<http::Response<VersionResponse>, Error> {
+pub fn version<Stream: Read + Write>(stream: Stream) -> Result<http::Response<VersionResponse>, Error> {
     let req = version_request()
         .map_err(|x| Error::BuildRequest(BuildRequestError::Request(x)))?;
 
@@ -133,7 +131,7 @@ pub fn create_container_request(config: &ContainerConfig) -> Result<http::Reques
         .map_err(BuildRequestError::Request)
 }
 
-pub fn create_container<Stream: Read + Write>(mut stream: Stream, config: &ContainerConfig) -> Result<http::Response<ContainerCreatedResponse>, Error> {
+pub fn create_container<Stream: Read + Write>(stream: Stream, config: &ContainerConfig) -> Result<http::Response<ContainerCreatedResponse>, Error> {
     let req = create_container_request(config)
         .map_err(Error::BuildRequest)?;
 
@@ -142,8 +140,8 @@ pub fn create_container<Stream: Read + Write>(mut stream: Stream, config: &Conta
 }
 
 
-pub fn start_container_request(containerId: &str) -> Result<http::Request<http_extra::Body>, http::Error> {
-    let url = format!("/containers/{}/start", containerId);
+pub fn start_container_request(container_id: &str) -> Result<http::Request<http_extra::Body>, http::Error> {
+    let url = format!("/containers/{}/start", container_id);
 
     http::Request::post(url)
         .header("Accept", "application/json")
@@ -153,16 +151,16 @@ pub fn start_container_request(containerId: &str) -> Result<http::Request<http_e
 }
 
 
-pub fn start_container<Stream: Read + Write>(mut stream: Stream, containerId: &str) -> Result<http::Response<http_extra::EmptyResponse>, Error> {
-    let req = start_container_request(containerId)
+pub fn start_container<Stream: Read + Write>(stream: Stream, container_id: &str) -> Result<http::Response<http_extra::EmptyResponse>, Error> {
+    let req = start_container_request(container_id)
         .map_err(|x| Error::BuildRequest(BuildRequestError::Request(x)))?;
 
     http_extra::send_request(stream, req)
         .map_err(Error::SendRequest)
 }
 
-pub fn remove_container_request(containerId: &str) -> Result<http::Request<http_extra::Body>, http::Error> {
-    let url = format!("/containers/{}?v=1&force=1", containerId);
+pub fn remove_container_request(container_id: &str) -> Result<http::Request<http_extra::Body>, http::Error> {
+    let url = format!("/containers/{}?v=1&force=1", container_id);
 
     http::Request::delete(url)
         .header("Accept", "application/json")
@@ -172,24 +170,24 @@ pub fn remove_container_request(containerId: &str) -> Result<http::Request<http_
 }
 
 
-pub fn remove_container<Stream: Read + Write>(mut stream: Stream, containerId: &str) -> Result<http::Response<http_extra::EmptyResponse>, Error> {
-    let req = remove_container_request(containerId)
+pub fn remove_container<Stream: Read + Write>(stream: Stream, container_id: &str) -> Result<http::Response<http_extra::EmptyResponse>, Error> {
+    let req = remove_container_request(container_id)
         .map_err(|x| Error::BuildRequest(BuildRequestError::Request(x)))?;
 
     http_extra::send_request(stream, req)
         .map_err(Error::SendRequest)
 }
 
-pub fn attach_container_request(containerId: &str) -> Result<http::Request<http_extra::Body>, http::Error> {
-    let url = format!("/containers/{}/attach?stream=1&stdout=1&stdin=1&stderr=1", containerId);
+pub fn attach_container_request(container_id: &str) -> Result<http::Request<http_extra::Body>, http::Error> {
+    let url = format!("/containers/{}/attach?stream=1&stdout=1&stdin=1&stderr=1", container_id);
 
     http::Request::post(url)
         .header("Host", "127.0.0.1")
         .body(http_extra::Body::Empty())
 }
 
-pub fn attach_container<Stream: Read + Write>(stream: Stream, containerId: &str) -> Result<http::Response<http_extra::EmptyResponse>, Error> {
-    let req = attach_container_request(containerId)
+pub fn attach_container<Stream: Read + Write>(stream: Stream, container_id: &str) -> Result<http::Response<http_extra::EmptyResponse>, Error> {
+    let req = attach_container_request(container_id)
         .map_err(|x| Error::BuildRequest(BuildRequestError::Request(x)))?;
 
     http_extra::send_request(stream, req)
@@ -215,7 +213,7 @@ pub struct StreamOutput {
 
 
 // TODO: add config for max read limit
-pub fn read_stream<R: Read>(mut r: R) -> Result<StreamOutput, StreamError> {
+pub fn read_stream<R: Read>(r: R) -> Result<StreamOutput, StreamError> {
     let mut reader = iowrap::Eof::new(r);
     let mut stdin = Vec::new();
     let mut stdout = Vec::new();
@@ -227,7 +225,7 @@ pub fn read_stream<R: Read>(mut r: R) -> Result<StreamOutput, StreamError> {
 
         let mut buffer = vec![0u8; stream_length];
         reader.read_exact(&mut buffer)
-            .map_err(StreamError::Read);
+            .map_err(StreamError::Read)?;
 
         match stream_type {
             StreamType::Stdin() => {
@@ -244,11 +242,7 @@ pub fn read_stream<R: Read>(mut r: R) -> Result<StreamOutput, StreamError> {
         }
     }
 
-    Ok(StreamOutput{
-        stdin: stdin,
-        stdout: stdout,
-        stderr: stderr,
-    })
+    Ok(StreamOutput{stdin, stdout, stderr})
 }
 
 

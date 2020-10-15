@@ -1,19 +1,13 @@
 use std::os::unix::net::UnixStream;
-use http::{Request, Response, StatusCode, HeaderValue};
-use http::header;
 use std::io;
 use std::io::{Read, Write};
 use std::time::Duration;
-use httparse;
 use std::str;
-use serde::{Serialize, Deserialize};
-use serde::de::DeserializeOwned;
+use serde::Serialize;
 use serde_json::{Value, Map};
-use serde_json;
 use std::net::Shutdown;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use crate::glot_docker_run::docker;
-use crate::glot_docker_run::http_extra;
 
 
 #[derive(Debug)]
@@ -50,22 +44,22 @@ pub fn run<T: Serialize>(stream_config: UnixStreamConfig, run_request: RunReques
             .map_err(Error::CreateContainer)
     })?;
 
-    let containerId = &container_response.body().id;
+    let container_id = &container_response.body().id;
 
-    let result = run_with_container(&stream_config, run_request, &containerId);
+    let result = run_with_container(&stream_config, run_request, &container_id);
 
-    with_unixstream(&stream_config, |stream| {
-        let _ = docker::remove_container(stream, &containerId);
+    let _ = with_unixstream(&stream_config, |stream| {
+        let _ = docker::remove_container(stream, &container_id);
         Ok(())
     });
 
     result
 }
 
-pub fn run_with_container<T: Serialize>(stream_config: &UnixStreamConfig, run_request: RunRequest<T>, containerId: &str) -> Result<RunResult, Error> {
+pub fn run_with_container<T: Serialize>(stream_config: &UnixStreamConfig, run_request: RunRequest<T>, container_id: &str) -> Result<RunResult, Error> {
 
     with_unixstream(&stream_config, |stream| {
-        docker::start_container(stream, &containerId)
+        docker::start_container(stream, &container_id)
             .map_err(Error::StartContainer)
     })?;
 
@@ -75,22 +69,22 @@ pub fn run_with_container<T: Serialize>(stream_config: &UnixStreamConfig, run_re
     };
 
     with_unixstream(&run_config, |stream| {
-        run_code(stream, &containerId, &run_request.payload)
+        run_code(stream, &container_id, &run_request.payload)
     })
 }
 
-pub fn run_code<Stream, Payload>(mut stream: Stream, containerId: &str, payload: Payload) -> Result<RunResult, Error>
+pub fn run_code<Stream, Payload>(mut stream: Stream, container_id: &str, payload: Payload) -> Result<RunResult, Error>
     where
         Stream: Read + Write,
         Payload: Serialize,
     {
 
-    docker::attach_container(&mut stream, containerId)
+    docker::attach_container(&mut stream, container_id)
         .map_err(Error::AttachContainer)?;
 
     // Send payload
     serde_json::to_writer(&mut stream, &payload)
-        .map_err(Error::SerializePayload);
+        .map_err(Error::SerializePayload)?;
 
     // Read response
     let output = docker::read_stream(stream)
@@ -114,9 +108,9 @@ pub enum RunFailure {
 }
 
 fn run_result_from_stream_output(output: docker::StreamOutput) -> RunResult {
-    if output.stdin.len() > 0 {
+    if !output.stdin.is_empty() {
         RunResult::Failure(RunFailure::UnexpectedStdin(output.stdin))
-    } else if (output.stderr.len() > 0) {
+    } else if !output.stderr.is_empty() {
         RunResult::Failure(RunFailure::UnexpectedStderr(output.stderr))
     } else {
         match decode_dict(&output.stdout) {
@@ -151,7 +145,7 @@ fn with_unixstream<F, T>(config: &UnixStreamConfig, f: F) -> Result<T, Error>
 
     let result = f(&mut stream)?;
 
-    stream.shutdown(Shutdown::Both);
+    let _ = stream.shutdown(Shutdown::Both);
 
     Ok(result)
 }
