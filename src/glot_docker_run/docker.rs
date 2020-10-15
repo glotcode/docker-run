@@ -201,6 +201,7 @@ pub enum StreamError {
     UnknownStreamType(u8),
     ReadStreamLength(io::Error),
     InvalidStreamLength(<usize as std::convert::TryFrom<u32>>::Error),
+    MaxReadSize(usize),
 }
 
 
@@ -213,8 +214,9 @@ pub struct StreamOutput {
 
 
 // TODO: add config for max read limit
-pub fn read_stream<R: Read>(r: R) -> Result<StreamOutput, StreamError> {
+pub fn read_stream<R: Read>(r: R, max_read_size: usize) -> Result<StreamOutput, StreamError> {
     let mut reader = iowrap::Eof::new(r);
+    let mut read_size = 0;
     let mut stdin = Vec::new();
     let mut stdout = Vec::new();
     let mut stderr = Vec::new();
@@ -240,11 +242,24 @@ pub fn read_stream<R: Read>(r: R) -> Result<StreamOutput, StreamError> {
                 stderr.append(&mut buffer);
             }
         }
+
+        read_size += stream_length;
+
+        err_if_false(read_size <= max_read_size, StreamError::MaxReadSize(max_read_size))?;
+
     }
 
     Ok(StreamOutput{stdin, stdout, stderr})
 }
 
+
+fn err_if_false<E>(value: bool, err: E) -> Result<(), E> {
+    if value {
+        Ok(())
+    } else {
+        Err(err)
+    }
+}
 
 #[derive(Debug)]
 enum StreamType {

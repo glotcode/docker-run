@@ -69,11 +69,11 @@ pub fn run_with_container<T: Serialize>(stream_config: &UnixStreamConfig, run_re
     };
 
     with_unixstream(&run_config, |stream| {
-        run_code(stream, &container_id, &run_request.payload)
+        run_code(stream, &container_id, &run_request)
     })
 }
 
-pub fn run_code<Stream, Payload>(mut stream: Stream, container_id: &str, payload: Payload) -> Result<RunResult, Error>
+pub fn run_code<Stream, Payload>(mut stream: Stream, container_id: &str, run_request: &RunRequest<Payload>) -> Result<RunResult, Error>
     where
         Stream: Read + Write,
         Payload: Serialize,
@@ -83,11 +83,11 @@ pub fn run_code<Stream, Payload>(mut stream: Stream, container_id: &str, payload
         .map_err(Error::AttachContainer)?;
 
     // Send payload
-    serde_json::to_writer(&mut stream, &payload)
+    serde_json::to_writer(&mut stream, &run_request.payload)
         .map_err(Error::SerializePayload)?;
 
     // Read response
-    let output = docker::read_stream(stream)
+    let output = docker::read_stream(stream, run_request.limits.max_output_size)
         .map_err(Error::ReadStream)?;
 
     Ok(run_result_from_stream_output(output))
