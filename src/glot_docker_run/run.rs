@@ -44,15 +44,25 @@ pub struct Limits {
 
 
 
-
 pub fn run<T: Serialize>(stream_config: UnixStreamConfig, run_request: RunRequest<T>) -> Result<RunResult, Error> {
-
     let container_response = with_unixstream(&stream_config, |stream| {
         docker::create_container(stream, &run_request.container_config)
             .map_err(Error::CreateContainer)
     })?;
 
     let containerId = &container_response.body().id;
+
+    let result = run_with_container(&stream_config, run_request, &containerId);
+
+    with_unixstream(&stream_config, |stream| {
+        let _ = docker::remove_container(stream, &containerId);
+        Ok(())
+    });
+
+    result
+}
+
+pub fn run_with_container<T: Serialize>(stream_config: &UnixStreamConfig, run_request: RunRequest<T>, containerId: &str) -> Result<RunResult, Error> {
 
     with_unixstream(&stream_config, |stream| {
         docker::start_container(stream, &containerId)
@@ -64,17 +74,9 @@ pub fn run<T: Serialize>(stream_config: UnixStreamConfig, run_request: RunReques
         ..stream_config.clone()
     };
 
-    let run_result = with_unixstream(&run_config, |stream| {
+    with_unixstream(&run_config, |stream| {
         run_code(stream, &containerId, &run_request.payload)
-    });
-
-    // TODO: add with_container helper function to make sure container is removed if start_container fails
-    with_unixstream(&stream_config, |stream| {
-        let _ = docker::remove_container(stream, &containerId);
-        Ok(())
-    });
-
-    run_result
+    })
 }
 
 pub fn run_code<Stream, Payload>(mut stream: Stream, containerId: &str, payload: Payload) -> Result<RunResult, Error>
