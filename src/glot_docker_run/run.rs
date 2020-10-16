@@ -49,7 +49,14 @@ pub fn run<T: Serialize>(stream_config: UnixStreamConfig, run_request: RunReques
     let result = run_with_container(&stream_config, run_request, &container_id);
 
     let _ = with_unixstream(&stream_config, |stream| {
-        let _ = docker::remove_container(stream, &container_id);
+        match docker::remove_container(stream, &container_id) {
+            Ok(_) => {}
+
+            Err(err) => {
+                log::error!("Failed to remove container: {:?}", err);
+            }
+        }
+
         Ok(())
     });
 

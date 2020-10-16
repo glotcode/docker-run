@@ -5,7 +5,6 @@ mod glot_docker_run;
 use std::process;
 use std::time::Duration;
 use serde::Serialize;
-use log;
 
 use glot_docker_run::docker;
 use glot_docker_run::run;
@@ -16,8 +15,6 @@ use glot_docker_run::environment;
 fn main() {
     env_logger::init();
     let config = prepare_config();
-
-    println!("{:?}", config);
 
     let payload = Payload{
         language: "bash".to_string(),
