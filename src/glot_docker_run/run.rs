@@ -107,6 +107,7 @@ pub enum RunResult {
     Failure(RunFailure),
 }
 
+// TODO: move RunFailure to Error
 #[derive(Debug)]
 pub enum RunFailure {
     UnexpectedStdin(Vec<u8>),

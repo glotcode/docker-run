@@ -1,43 +1,98 @@
-#![allow(dead_code)]
+#![allow(warnings)]
 
 mod glot_docker_run;
 
 use std::process;
+use std::sync::Arc;
+use std::thread;
 use std::time::Duration;
 use serde::Serialize;
+use serde_json::{Value, Map};
+use serde_json;
+use tiny_http::{Response, Server};
+
 
 use glot_docker_run::docker;
 use glot_docker_run::run;
 use glot_docker_run::config;
 use glot_docker_run::environment;
+use glot_docker_run::run_handler;
 
 
 fn main() {
     env_logger::init();
     let config = prepare_config();
 
-    let payload = Payload{
-        language: "bash".to_string(),
-        files: vec![File{
-            name: "main.sh".to_string(),
-            content: "echo hello".to_string(),
-        }],
-        stdin: "".to_string(),
-        command: "".to_string(),
-    };
+    let server = Arc::new(tiny_http::Server::http("127.0.0.1:8088").unwrap());
+    println!("Now listening on port 8088");
 
-    let container_config = docker::default_container_config("glot/bash:latest".to_string());
+    let max_threads = 15;
 
-    let res = run::run(config.unix_socket, run::RunRequest{
-        container_config,
-        payload,
-        limits: run::Limits{
-            max_execution_time: Duration::from_secs(30),
-            max_output_size: 100000,
-        },
-    });
-    println!("{:?}", res);
+    let mut handles = Vec::new();
+
+
+    for _ in 0..max_threads {
+        let server = server.clone();
+        let config = config.clone();
+
+        handles.push(thread::spawn(move || {
+            for request in server.incoming_requests() {
+                handle_request(&config, request);
+            }
+        }));
+    }
+
+    for h in handles {
+        h.join().unwrap();
+    }
 }
+
+
+fn handle_request(config: &config::Config, mut request: tiny_http::Request) {
+
+    let foo = run_handler::handle(config, &mut request);
+
+    match foo {
+        Ok(data) => {
+            success_response(request, &data)
+        }
+
+        Err(err) => {
+            error_response(request, err)
+        }
+    }
+}
+
+fn success_response(mut request: tiny_http::Request, data: &[u8]) {
+    let response = Response::new(
+        tiny_http::StatusCode(200),
+        vec![
+            tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap()
+        ],
+        data,
+        Some(data.len()),
+        None,
+    );
+
+    request.respond(response);
+}
+
+fn error_response(mut request: tiny_http::Request, error: run_handler::Error) {
+    let data = error.message.as_bytes();
+
+    let response = Response::new(
+        tiny_http::StatusCode(error.status_code),
+        vec![
+            tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap()
+        ],
+        data,
+        Some(data.len()),
+        None,
+    );
+
+    request.respond(response);
+}
+
 
 fn prepare_config() -> config::Config {
     let env = environment::get_environment();
@@ -85,21 +140,4 @@ fn build_unix_socket_config(env: &environment::Environment) -> Result<run::UnixS
         read_timeout: Duration::from_secs(read_timeout),
         write_timeout: Duration::from_secs(write_timeout),
     })
-}
-
-
-
-// TODO: remove struct, this service should just proxy json from input
-#[derive(Serialize)]
-struct Payload {
-    language: String,
-    files: Vec<File>,
-    stdin: String,
-    command: String,
-}
-
-#[derive(Serialize)]
-struct File {
-    name: String,
-    content: String,
 }
