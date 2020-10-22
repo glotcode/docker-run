@@ -16,7 +16,7 @@ use glot_docker_run::docker;
 use glot_docker_run::run;
 use glot_docker_run::config;
 use glot_docker_run::environment;
-use glot_docker_run::run_handler;
+use glot_docker_run::api;
 
 
 fn main() {
@@ -50,9 +50,9 @@ fn main() {
 
 fn handle_request(config: &config::Config, mut request: tiny_http::Request) {
 
-    let foo = run_handler::handle(config, &mut request);
+    let result = api::run::handle(config, &mut request);
 
-    match foo {
+    match result {
         Ok(data) => {
             success_response(request, &data)
         }
@@ -77,7 +77,7 @@ fn success_response(mut request: tiny_http::Request, data: &[u8]) {
     request.respond(response);
 }
 
-fn error_response(mut request: tiny_http::Request, error: run_handler::Error) {
+fn error_response(mut request: tiny_http::Request, error: api::run::Error) {
     let data = error.message.as_bytes();
 
     let response = Response::new(
