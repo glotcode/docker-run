@@ -62,11 +62,7 @@ impl fmt::Display for Error {
             Error::ReadStream(stream_error) => {
                 match stream_error {
                     docker::StreamError::Read(err) => {
-                        if err.kind() == io::ErrorKind::WouldBlock {
-                            write!(f, "Max execution time exceeded")
-                        } else {
-                            write!(f, "Failed to read from stream: {}", err)
-                        }
+                        write!(f, "Failed to read from stream: {}", err)
                     }
 
                     docker::StreamError::ReadStreamType(err) => {
@@ -83,6 +79,10 @@ impl fmt::Display for Error {
 
                     docker::StreamError::InvalidStreamLength(err) => {
                         write!(f, "Failed to parse stream length: {:?}", err)
+                    }
+
+                    docker::StreamError::MaxExecutionTime() => {
+                        write!(f, "Max execution time exceeded")
                     }
 
                     docker::StreamError::MaxReadSize(max_size) => {

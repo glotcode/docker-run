@@ -109,12 +109,8 @@ pub fn error_code(error: &run::Error) -> String {
 
         run::Error::ReadStream(stream_error) => {
             match stream_error {
-                docker::StreamError::Read(err) => {
-                    if err.kind() == io::ErrorKind::WouldBlock {
-                        "limits.execution_time".to_string()
-                    } else {
-                        "docker.container.stream.read".to_string()
-                    }
+                docker::StreamError::Read(_) => {
+                    "docker.container.stream.read".to_string()
                 }
 
                 docker::StreamError::ReadStreamType(_) => {
@@ -131,6 +127,10 @@ pub fn error_code(error: &run::Error) -> String {
 
                 docker::StreamError::InvalidStreamLength(_) => {
                     "docker.container.stream.read".to_string()
+                }
+
+                docker::StreamError::MaxExecutionTime() => {
+                    "limits.execution_time".to_string()
                 }
 
                 docker::StreamError::MaxReadSize(_) => {

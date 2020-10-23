@@ -201,6 +201,7 @@ pub enum StreamError {
     UnknownStreamType(u8),
     ReadStreamLength(io::Error),
     InvalidStreamLength(<usize as std::convert::TryFrom<u32>>::Error),
+    MaxExecutionTime(),
     MaxReadSize(usize),
 }
 
@@ -221,13 +222,13 @@ pub fn read_stream<R: Read>(r: R, max_read_size: usize) -> Result<StreamOutput, 
     let mut stdout = Vec::new();
     let mut stderr = Vec::new();
 
-    while !reader.eof().map_err(StreamError::Read)? {
+    while !reader.eof().map_err(io_read_error_to_stream_error)? {
         let stream_type = read_stream_type(&mut reader)?;
         let stream_length = read_stream_length(&mut reader)?;
 
         let mut buffer = vec![0u8; stream_length];
         reader.read_exact(&mut buffer)
-            .map_err(StreamError::Read)?;
+            .map_err(io_read_error_to_stream_error)?;
 
         match stream_type {
             StreamType::Stdin() => {
@@ -250,6 +251,14 @@ pub fn read_stream<R: Read>(r: R, max_read_size: usize) -> Result<StreamOutput, 
     }
 
     Ok(StreamOutput{stdin, stdout, stderr})
+}
+
+fn io_read_error_to_stream_error(err: io::Error) -> StreamError {
+    if err.kind() == io::ErrorKind::WouldBlock {
+        StreamError::MaxExecutionTime()
+    } else {
+        StreamError::Read(err)
+    }
 }
 
 
