@@ -9,6 +9,7 @@ use std::io;
 use std::io::BufReader;
 use std::io::BufRead;
 use std::str::FromStr;
+use std::fmt;
 
 
 const CARRIAGE_RETURN: u8 = 0xD;
@@ -25,10 +26,37 @@ pub enum Body {
 pub enum Error {
     WriteRequest(io::Error),
     ReadResponse(io::Error),
-    ParseResponse(ParseError),
+    ParseResponseHead(ParseError),
     ReadBody(io::Error),
     DeserializeBody(serde_json::Error),
 }
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Error::WriteRequest(err) => {
+                write!(f, "Failed to send request: {}", err)
+            }
+
+            Error::ReadResponse(err) => {
+                write!(f, "Failed read response: {}", err)
+            }
+
+            Error::ParseResponseHead(err) => {
+                write!(f, "Failed parse response head: {}", err)
+            }
+
+            Error::ReadBody(err) => {
+                write!(f, "Failed read to response body: {}", err)
+            }
+
+            Error::DeserializeBody(err) => {
+                write!(f, "Failed deserialize response body: {}", err)
+            }
+        }
+    }
+}
+
 
 pub fn send_request<Stream, ResponseBody>(mut stream: Stream, req: Request<Body>) -> Result<Response<ResponseBody>, Error>
     where
@@ -47,7 +75,7 @@ pub fn send_request<Stream, ResponseBody>(mut stream: Stream, req: Request<Body>
         .map_err(Error::ReadResponse)?;
 
     let response_parts = parse_response_head(response_head)
-        .map_err(Error::ParseResponse)?;
+        .map_err(Error::ParseResponseHead)?;
 
     let content_length = get_content_length(&response_parts.headers);
 
@@ -157,6 +185,28 @@ pub enum ParseError {
     Response(ResponseError),
 }
 
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ParseError::Parse(err) => {
+                write!(f, "{}", err)
+            }
+
+            ParseError::Empty() => {
+                write!(f, "Received empty response")
+            }
+
+            ParseError::Partial() => {
+                write!(f, "Received partial response")
+            }
+
+            ParseError::Response(err) => {
+                write!(f, "Invalid response: {}", err)
+            }
+        }
+    }
+}
+
 pub fn parse_response_head(bytes: Vec<u8>) -> Result<response::Parts, ParseError> {
     let mut headers = [httparse::EMPTY_HEADER; 30];
     let mut resp = httparse::Response::new(&mut headers);
@@ -189,6 +239,32 @@ pub enum ResponseError {
     HeaderValue(header::InvalidHeaderValue),
     StatusCode(),
     Builder(http::Error),
+}
+
+impl fmt::Display for ResponseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ResponseError::InvalidBuilder() => {
+                write!(f, "Invalid response builder")
+            }
+
+            ResponseError::HeaderName(err) => {
+                write!(f, "Invalid header name: {}", err)
+            }
+
+            ResponseError::HeaderValue(err) => {
+                write!(f, "Invalid header value: {}", err)
+            }
+
+            ResponseError::StatusCode() => {
+                write!(f, "Failed to parse status code")
+            }
+
+            ResponseError::Builder(err) => {
+                write!(f, "Response builder error: {}", err)
+            }
+        }
+    }
 }
 
 fn to_http_parts(parsed: httparse::Response) -> Result<response::Parts, ResponseError> {

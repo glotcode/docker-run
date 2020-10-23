@@ -40,55 +40,23 @@ impl fmt::Display for Error {
             }
 
             Error::CreateContainer(err) => {
-                // TODO: dont use debug
-                write!(f, "Failed to create container: {:?}", err)
+                write!(f, "Failed to create container: {}", err)
             }
 
             Error::StartContainer(err) => {
-                // TODO: dont use debug
-                write!(f, "Failed to start container: {:?}", err)
+                write!(f, "Failed to start container: {}", err)
             }
 
             Error::AttachContainer(err) => {
-                // TODO: dont use debug
-                write!(f, "Failed to attach to container: {:?}", err)
+                write!(f, "Failed to attach to container: {}", err)
             }
 
             Error::SerializePayload(err) => {
-                // TODO: dont use debug
-                write!(f, "Failed to send payload to stream: {:?}", err)
+                write!(f, "Failed to send payload to stream: {}", err)
             }
 
-            Error::ReadStream(stream_error) => {
-                match stream_error {
-                    docker::StreamError::Read(err) => {
-                        write!(f, "Failed to read from stream: {}", err)
-                    }
-
-                    docker::StreamError::ReadStreamType(err) => {
-                        write!(f, "Failed to read stream type: {:?}", err)
-                    }
-
-                    docker::StreamError::UnknownStreamType(stream_type) => {
-                        write!(f, "Unknown stream type: {}", stream_type)
-                    }
-
-                    docker::StreamError::ReadStreamLength(err) => {
-                        write!(f, "Failed to read stream length: {:?}", err)
-                    }
-
-                    docker::StreamError::InvalidStreamLength(err) => {
-                        write!(f, "Failed to parse stream length: {:?}", err)
-                    }
-
-                    docker::StreamError::MaxExecutionTime() => {
-                        write!(f, "Max execution time exceeded")
-                    }
-
-                    docker::StreamError::MaxReadSize(max_size) => {
-                        write!(f, "Max output size exceeded ({} bytes)", max_size)
-                    }
-                }
+            Error::ReadStream(err) => {
+                write!(f, "Failed while reading stream: {}", err)
             }
 
             Error::StreamStdinUnexpected(bytes) => {
@@ -145,7 +113,7 @@ pub fn run<T: Serialize>(stream_config: UnixStreamConfig, run_request: RunReques
             Ok(_) => {}
 
             Err(err) => {
-                log::error!("Failed to remove container: {:?}", err);
+                log::error!("Failed to remove container: {}", err);
             }
         }
 

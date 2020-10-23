@@ -2,6 +2,7 @@ use crate::docker_run::http_extra;
 use serde::{Serialize, Deserialize};
 use std::io::{Read, Write};
 use std::io;
+use std::fmt;
 use std::convert::TryInto;
 
 #[derive(Debug, Serialize)]
@@ -75,14 +76,43 @@ pub fn default_container_config(image_name: String) -> ContainerConfig {
 
 #[derive(Debug)]
 pub enum Error {
-    BuildRequest(BuildRequestError),
+    PrepareRequest(PrepareRequestError),
     SendRequest(http_extra::Error),
 }
 
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Error::PrepareRequest(err) => {
+                write!(f, "Failed to prepare request: {}", err)
+            }
+
+            Error::SendRequest(err) => {
+                write!(f, "Failed while sending request: {}", err)
+            }
+        }
+    }
+}
+
+
 #[derive(Debug)]
-pub enum BuildRequestError {
-    Body(serde_json::Error),
+pub enum PrepareRequestError {
+    SerializeBody(serde_json::Error),
     Request(http::Error),
+}
+
+impl fmt::Display for PrepareRequestError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            PrepareRequestError::SerializeBody(err) => {
+                write!(f, "Failed to serialize request body: {}", err)
+            }
+
+            PrepareRequestError::Request(err) => {
+                write!(f, "{}", err)
+            }
+        }
+    }
 }
 
 
@@ -104,7 +134,7 @@ pub fn version_request() -> Result<http::Request<http_extra::Body>, http::Error>
 
 pub fn version<Stream: Read + Write>(stream: Stream) -> Result<http::Response<VersionResponse>, Error> {
     let req = version_request()
-        .map_err(|x| Error::BuildRequest(BuildRequestError::Request(x)))?;
+        .map_err(|x| Error::PrepareRequest(PrepareRequestError::Request(x)))?;
 
     http_extra::send_request(stream, req)
         .map_err(Error::SendRequest)
@@ -117,9 +147,9 @@ pub struct ContainerCreatedResponse {
     pub warnings: Vec<String>,
 }
 
-pub fn create_container_request(config: &ContainerConfig) -> Result<http::Request<http_extra::Body>, BuildRequestError> {
+pub fn create_container_request(config: &ContainerConfig) -> Result<http::Request<http_extra::Body>, PrepareRequestError> {
     let body = serde_json::to_vec(config)
-        .map_err(BuildRequestError::Body)?;
+        .map_err(PrepareRequestError::SerializeBody)?;
 
     http::Request::post("/containers/create")
         .header("Content-Type", "application/json")
@@ -128,12 +158,12 @@ pub fn create_container_request(config: &ContainerConfig) -> Result<http::Reques
         .header("Content-Length", body.len())
         .header("Connection", "close")
         .body(http_extra::Body::Bytes(body))
-        .map_err(BuildRequestError::Request)
+        .map_err(PrepareRequestError::Request)
 }
 
 pub fn create_container<Stream: Read + Write>(stream: Stream, config: &ContainerConfig) -> Result<http::Response<ContainerCreatedResponse>, Error> {
     let req = create_container_request(config)
-        .map_err(Error::BuildRequest)?;
+        .map_err(Error::PrepareRequest)?;
 
     http_extra::send_request(stream, req)
         .map_err(Error::SendRequest)
@@ -153,7 +183,7 @@ pub fn start_container_request(container_id: &str) -> Result<http::Request<http_
 
 pub fn start_container<Stream: Read + Write>(stream: Stream, container_id: &str) -> Result<http::Response<http_extra::EmptyResponse>, Error> {
     let req = start_container_request(container_id)
-        .map_err(|x| Error::BuildRequest(BuildRequestError::Request(x)))?;
+        .map_err(|x| Error::PrepareRequest(PrepareRequestError::Request(x)))?;
 
     http_extra::send_request(stream, req)
         .map_err(Error::SendRequest)
@@ -172,7 +202,7 @@ pub fn remove_container_request(container_id: &str) -> Result<http::Request<http
 
 pub fn remove_container<Stream: Read + Write>(stream: Stream, container_id: &str) -> Result<http::Response<http_extra::EmptyResponse>, Error> {
     let req = remove_container_request(container_id)
-        .map_err(|x| Error::BuildRequest(BuildRequestError::Request(x)))?;
+        .map_err(|x| Error::PrepareRequest(PrepareRequestError::Request(x)))?;
 
     http_extra::send_request(stream, req)
         .map_err(Error::SendRequest)
@@ -188,7 +218,7 @@ pub fn attach_container_request(container_id: &str) -> Result<http::Request<http
 
 pub fn attach_container<Stream: Read + Write>(stream: Stream, container_id: &str) -> Result<http::Response<http_extra::EmptyResponse>, Error> {
     let req = attach_container_request(container_id)
-        .map_err(|x| Error::BuildRequest(BuildRequestError::Request(x)))?;
+        .map_err(|x| Error::PrepareRequest(PrepareRequestError::Request(x)))?;
 
     http_extra::send_request(stream, req)
         .map_err(Error::SendRequest)
@@ -203,6 +233,40 @@ pub enum StreamError {
     InvalidStreamLength(<usize as std::convert::TryFrom<u32>>::Error),
     MaxExecutionTime(),
     MaxReadSize(usize),
+}
+
+impl fmt::Display for StreamError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            StreamError::Read(err) => {
+                write!(f, "{}", err)
+            }
+
+            StreamError::ReadStreamType(err) => {
+                write!(f, "Failed to read stream type: {}", err)
+            }
+
+            StreamError::UnknownStreamType(stream_type) => {
+                write!(f, "Unknown stream type: (type: {})", stream_type)
+            }
+
+            StreamError::ReadStreamLength(err) => {
+                write!(f, "Failed to read stream length: {}", err)
+            }
+
+            StreamError::InvalidStreamLength(err) => {
+                write!(f, "Failed to parse stream length: {}", err)
+            }
+
+            StreamError::MaxExecutionTime() => {
+                write!(f, "Max execution time exceeded")
+            }
+
+            StreamError::MaxReadSize(max_size) => {
+                write!(f, "Max output size exceeded ({} bytes)", max_size)
+            }
+        }
+    }
 }
 
 
