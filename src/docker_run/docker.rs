@@ -278,7 +278,6 @@ pub struct StreamOutput {
 }
 
 
-// TODO: add config for max read limit
 pub fn read_stream<R: Read>(r: R, max_read_size: usize) -> Result<StreamOutput, StreamError> {
     let mut reader = iowrap::Eof::new(r);
     let mut read_size = 0;
