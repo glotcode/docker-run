@@ -1,6 +1,6 @@
 #![allow(warnings)]
 
-mod glot_docker_run;
+mod docker_run;
 
 use std::process;
 use std::sync::Arc;
@@ -12,11 +12,11 @@ use serde_json;
 use tiny_http::{Response, Server};
 
 
-use glot_docker_run::docker;
-use glot_docker_run::run;
-use glot_docker_run::config;
-use glot_docker_run::environment;
-use glot_docker_run::api;
+use docker_run::docker;
+use docker_run::run;
+use docker_run::config;
+use docker_run::environment;
+use docker_run::api;
 
 
 fn main() {

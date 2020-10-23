@@ -2,9 +2,9 @@ use serde::Serialize;
 use serde_json::{Value, Map};
 use std::time::Duration;
 
-use crate::glot_docker_run::docker;
-use crate::glot_docker_run::run;
-use crate::glot_docker_run::config;
+use crate::docker_run::docker;
+use crate::docker_run::run;
+use crate::docker_run::config;
 
 #[derive(Debug, serde::Deserialize)]
 struct RunRequest {
