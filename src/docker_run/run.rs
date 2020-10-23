@@ -19,6 +19,9 @@ pub enum Error {
     AttachContainer(docker::Error),
     SerializePayload(serde_json::Error),
     ReadStream(docker::StreamError),
+    StreamStdinUnexpected(Vec<u8>),
+    StreamStderr(Vec<u8>),
+    StreamStdoutDecode(serde_json::Error),
 }
 
 
@@ -38,7 +41,7 @@ pub struct Limits {
 
 
 
-pub fn run<T: Serialize>(stream_config: UnixStreamConfig, run_request: RunRequest<T>) -> Result<RunResult, Error> {
+pub fn run<T: Serialize>(stream_config: UnixStreamConfig, run_request: RunRequest<T>) -> Result<Map<String, Value>, Error> {
     let container_response = with_unixstream(&stream_config, |stream| {
         docker::create_container(stream, &run_request.container_config)
             .map_err(Error::CreateContainer)
@@ -63,7 +66,7 @@ pub fn run<T: Serialize>(stream_config: UnixStreamConfig, run_request: RunReques
     result
 }
 
-pub fn run_with_container<T: Serialize>(stream_config: &UnixStreamConfig, run_request: RunRequest<T>, container_id: &str) -> Result<RunResult, Error> {
+pub fn run_with_container<T: Serialize>(stream_config: &UnixStreamConfig, run_request: RunRequest<T>, container_id: &str) -> Result<Map<String, Value>, Error> {
 
     with_unixstream(&stream_config, |stream| {
         docker::start_container(stream, &container_id)
@@ -80,7 +83,7 @@ pub fn run_with_container<T: Serialize>(stream_config: &UnixStreamConfig, run_re
     })
 }
 
-pub fn run_code<Stream, Payload>(mut stream: Stream, container_id: &str, run_request: &RunRequest<Payload>) -> Result<RunResult, Error>
+pub fn run_code<Stream, Payload>(mut stream: Stream, container_id: &str, run_request: &RunRequest<Payload>) -> Result<Map<String, Value>, Error>
     where
         Stream: Read + Write,
         Payload: Serialize,
@@ -97,39 +100,23 @@ pub fn run_code<Stream, Payload>(mut stream: Stream, container_id: &str, run_req
     let output = docker::read_stream(stream, run_request.limits.max_output_size)
         .map_err(Error::ReadStream)?;
 
-    Ok(run_result_from_stream_output(output))
-}
+    // Return error if we recieved stdin or stderr data from the stream
+    err_if_false(output.stdin.is_empty(), Error::StreamStdinUnexpected(output.stdin))?;
+    err_if_false(output.stderr.is_empty(), Error::StreamStderr(output.stderr))?;
 
 
-#[derive(Debug)]
-pub enum RunResult {
-    Success(Map<String, Value>),
-    Failure(RunFailure),
-}
+    // Decode stdout data to dict
+    match decode_dict(&output.stdout) {
+        Ok(json_dict) => {
+            Ok(json_dict)
+        }
 
-// TODO: move RunFailure to Error
-#[derive(Debug)]
-pub enum RunFailure {
-    UnexpectedStdin(Vec<u8>),
-    UnexpectedStderr(Vec<u8>),
-    StdoutDecode(serde_json::Error),
-}
-
-fn run_result_from_stream_output(output: docker::StreamOutput) -> RunResult {
-    if !output.stdin.is_empty() {
-        RunResult::Failure(RunFailure::UnexpectedStdin(output.stdin))
-    } else if !output.stderr.is_empty() {
-        RunResult::Failure(RunFailure::UnexpectedStderr(output.stderr))
-    } else {
-        match decode_dict(&output.stdout) {
-            Ok(json_dict) =>
-                RunResult::Success(json_dict),
-
-            Err(err) =>
-                RunResult::Failure(RunFailure::StdoutDecode(err)),
+        Err(err) => {
+            Err(Error::StreamStdoutDecode(err))
         }
     }
 }
+
 
 #[derive(Debug, Clone)]
 pub struct UnixStreamConfig {
@@ -161,4 +148,13 @@ fn with_unixstream<F, T>(config: &UnixStreamConfig, f: F) -> Result<T, Error>
 
 fn decode_dict(data: &[u8]) -> Result<Map<String, Value>, serde_json::Error> {
     serde_json::from_slice(data)
+}
+
+
+fn err_if_false<E>(value: bool, err: E) -> Result<(), E> {
+    if value {
+        Ok(())
+    } else {
+        Err(err)
+    }
 }

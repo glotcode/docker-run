@@ -51,15 +51,8 @@ pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Resu
     });
 
     match res {
-        Ok(run::RunResult::Success(data)) => {
+        Ok(data) => {
             Ok(serde_json::to_vec(&data).unwrap())
-        }
-
-        Ok(run::RunResult::Failure(failure)) => {
-            Err(Error{
-                status_code: 400,
-                message: "TODO".to_string(),
-            })
         }
 
         Err(err) => {
