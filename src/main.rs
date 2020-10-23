@@ -78,15 +78,13 @@ fn success_response(mut request: tiny_http::Request, data: &[u8]) {
 }
 
 fn error_response(mut request: tiny_http::Request, error: api::run::Error) {
-    let data = error.message.as_bytes();
-
     let response = Response::new(
         tiny_http::StatusCode(error.status_code),
         vec![
             tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap()
         ],
-        data,
-        Some(data.len()),
+        error.body.as_slice(),
+        Some(error.body.len()),
         None,
     );
 

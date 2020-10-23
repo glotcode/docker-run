@@ -3,6 +3,7 @@ use std::io;
 use std::io::{Read, Write};
 use std::time::Duration;
 use std::str;
+use std::fmt;
 use serde::Serialize;
 use serde_json::{Value, Map};
 use std::net::Shutdown;
@@ -23,6 +24,94 @@ pub enum Error {
     StreamStderr(Vec<u8>),
     StreamStdoutDecode(serde_json::Error),
 }
+
+
+
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Error::Connect(err) => {
+                write!(f, "Failed to connect to docker unix socket: {}", err)
+            }
+
+            Error::SetStreamTimeout(err) => {
+                write!(f, "Failed set timeout on unix socket: {}", err)
+            }
+
+            Error::CreateContainer(err) => {
+                // TODO: dont use debug
+                write!(f, "Failed to create container: {:?}", err)
+            }
+
+            Error::StartContainer(err) => {
+                // TODO: dont use debug
+                write!(f, "Failed to start container: {:?}", err)
+            }
+
+            Error::AttachContainer(err) => {
+                // TODO: dont use debug
+                write!(f, "Failed to attach to container: {:?}", err)
+            }
+
+            Error::SerializePayload(err) => {
+                // TODO: dont use debug
+                write!(f, "Failed to send payload to stream: {:?}", err)
+            }
+
+            Error::ReadStream(stream_error) => {
+                match stream_error {
+                    docker::StreamError::Read(err) => {
+                        if err.kind() == io::ErrorKind::WouldBlock {
+                            write!(f, "Max execution time exceeded")
+                        } else {
+                            write!(f, "Failed to read from stream: {}", err)
+                        }
+                    }
+
+                    docker::StreamError::ReadStreamType(err) => {
+                        write!(f, "Failed to read stream type: {:?}", err)
+                    }
+
+                    docker::StreamError::UnknownStreamType(stream_type) => {
+                        write!(f, "Unknown stream type: {}", stream_type)
+                    }
+
+                    docker::StreamError::ReadStreamLength(err) => {
+                        write!(f, "Failed to read stream length: {:?}", err)
+                    }
+
+                    docker::StreamError::InvalidStreamLength(err) => {
+                        write!(f, "Failed to parse stream length: {:?}", err)
+                    }
+
+                    docker::StreamError::MaxReadSize(max_size) => {
+                        write!(f, "Max output size exceeded ({} bytes)", max_size)
+                    }
+                }
+            }
+
+            Error::StreamStdinUnexpected(bytes) => {
+                let msg = String::from_utf8(bytes.to_vec())
+                    .unwrap_or(format!("{:?}", bytes));
+
+                write!(f, "Code runner returned unexpected stdin data: {}", msg)
+            }
+
+            Error::StreamStderr(bytes) => {
+                let msg = String::from_utf8(bytes.to_vec())
+                    .unwrap_or(format!("{:?}", bytes));
+
+                write!(f, "Code runner failed with the following message: {}", msg)
+            }
+
+            Error::StreamStdoutDecode(err) => {
+                write!(f, "Failed to decode json returned from code runner: {}", err)
+            }
+        }
+    }
+}
+
 
 
 #[derive(Debug)]
