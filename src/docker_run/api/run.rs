@@ -47,7 +47,7 @@ pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Resu
             body: serde_json::to_vec(&ErrorBody{
                 error: "request.parse".to_string(),
                 message: format!("Failed to parse json from request: {}", err),
-            }).unwrap(),
+            }).unwrap_or(err.to_string().as_bytes().to_vec())
         })?;
 
     let container_config = docker::default_container_config(run_request.image);
@@ -63,8 +63,15 @@ pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Resu
 
     match res {
         Ok(data) => {
-            // TODO: remove unwrap
-            Ok(serde_json::to_vec(&data).unwrap())
+            serde_json::to_vec(&data).map_err(|err| {
+                Error{
+                    status_code: 400,
+                    body: serde_json::to_vec(&ErrorBody{
+                        error: "response.serialize".to_string(),
+                        message: format!("Failed to serialize response: {}", err),
+                    }).unwrap_or(err.to_string().as_bytes().to_vec())
+                }
+            })
         }
 
         Err(err) => {
@@ -73,7 +80,7 @@ pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Resu
                 body: serde_json::to_vec(&ErrorBody{
                     error: error_code(&err),
                     message: err.to_string(),
-                }).unwrap(),
+                }).unwrap_or(err.to_string().as_bytes().to_vec())
             })
         }
     }
