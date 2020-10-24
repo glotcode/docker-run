@@ -76,6 +76,7 @@ pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Resu
 
         Err(err) => {
             Err(Error{
+                // TODO: set correct status code
                 status_code: 400,
                 body: serde_json::to_vec(&ErrorBody{
                     error: error_code(&err),
@@ -87,7 +88,6 @@ pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Resu
 }
 
 
-// TODO: prefix by internal error, user error, temporary?
 pub fn error_code(error: &run::Error) -> String {
     match error {
         run::Error::Connect(_) => {
@@ -116,32 +116,16 @@ pub fn error_code(error: &run::Error) -> String {
 
         run::Error::ReadStream(stream_error) => {
             match stream_error {
-                docker::StreamError::Read(_) => {
-                    "docker.container.stream.read".to_string()
-                }
-
-                docker::StreamError::ReadStreamType(_) => {
-                    "docker.container.stream.read".to_string()
-                }
-
-                docker::StreamError::UnknownStreamType(_) => {
-                    "docker.container.stream.type.unknown".to_string()
-                }
-
-                docker::StreamError::ReadStreamLength(_) => {
-                    "docker.container.stream.read".to_string()
-                }
-
-                docker::StreamError::InvalidStreamLength(_) => {
-                    "docker.container.stream.read".to_string()
-                }
-
                 docker::StreamError::MaxExecutionTime() => {
                     "limits.execution_time".to_string()
                 }
 
                 docker::StreamError::MaxReadSize(_) => {
                     "limits.read.size".to_string()
+                }
+
+                _ => {
+                    "docker.container.stream.read".to_string()
                 }
             }
         }
