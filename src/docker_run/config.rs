@@ -11,7 +11,7 @@ pub struct Config {
 pub struct ServerConfig {
     pub listen_addr: String,
     pub listen_port: u16,
-    pub listen_threads: u16,
+    pub worker_threads: u16,
 }
 
 impl ServerConfig {

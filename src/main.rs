@@ -51,7 +51,7 @@ fn start() -> Result<(), Error> {
         .map(Arc::new)
         .map_err(Error::StartServer)?;
 
-    let handles = (0..config.server.listen_threads).fold(Vec::new(), |mut acc, _| {
+    let handles = (0..config.server.worker_threads).fold(Vec::new(), |mut acc, _| {
         let server = server.clone();
         let config = config.clone();
 
@@ -64,7 +64,7 @@ fn start() -> Result<(), Error> {
         acc
     });
 
-    log::info!("Listening on {} with {} threads", config.server.listen_addr_with_port(), config.server.listen_threads);
+    log::info!("Listening on {} with {} worker threads", config.server.listen_addr_with_port(), config.server.worker_threads);
 
     // Wait for threads to complete, in practice this will block forever unless there is a panic
     for handle in handles {
@@ -149,12 +149,12 @@ fn build_config(env: &environment::Environment) -> Result<config::Config, enviro
 fn build_server_config(env: &environment::Environment) -> Result<config::ServerConfig, environment::Error> {
     let listen_addr = environment::lookup(env, "SERVER_LISTEN_ADDR")?;
     let listen_port = environment::lookup(env, "SERVER_LISTEN_PORT")?;
-    let listen_threads = environment::lookup(env, "SERVER_LISTEN_THREADS")?;
+    let worker_threads = environment::lookup(env, "SERVER_WORKER_THREADS")?;
 
     Ok(config::ServerConfig{
         listen_addr,
         listen_port,
-        listen_threads,
+        worker_threads,
     })
 }
 
