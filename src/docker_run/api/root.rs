@@ -17,14 +17,14 @@ pub fn handle(_: &config::Config, _: &mut tiny_http::Request) -> Result<Vec<u8>,
 
     let response = Response{
         name: "docker-run".to_string(),
-        description: "Api for running code in docker".to_string(),
+        description: "Api for running code in transient docker containers".to_string(),
         version: VERSION.unwrap_or("unknown").to_string(),
     };
 
-    serde_json::to_vec(&response).map_err(|err| {
+    serde_json::to_vec_pretty(&response).map_err(|err| {
         api::Error{
-            status_code: 400,
-            body: serde_json::to_vec(&api::ErrorBody{
+            status_code: 500,
+            body: serde_json::to_vec_pretty(&api::ErrorBody{
                 error: "response.serialize".to_string(),
                 message: format!("Failed to serialize response: {}", err),
             }).unwrap_or(err.to_string().as_bytes().to_vec())
