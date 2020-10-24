@@ -23,15 +23,11 @@ fn main() {
     env_logger::init();
     let config = prepare_config();
 
-    let server = Arc::new(tiny_http::Server::http("127.0.0.1:8088").unwrap());
-    println!("Now listening on port 8088");
-
-    let max_threads = 15;
+    let server = Arc::new(tiny_http::Server::http(config.server.listen_addr_with_port()).unwrap());
 
     let mut handles = Vec::new();
 
-
-    for _ in 0..max_threads {
+    for _ in 0..config.server.listen_threads {
         let server = server.clone();
         let config = config.clone();
 
@@ -41,6 +37,8 @@ fn main() {
             }
         }));
     }
+
+    log::info!("Listening on {} with {} threads", config.server.listen_addr_with_port(), config.server.listen_threads);
 
     for h in handles {
         h.join().unwrap();
@@ -136,10 +134,12 @@ fn build_config(env: &environment::Environment) -> Result<config::Config, enviro
 fn build_server_config(env: &environment::Environment) -> Result<config::ServerConfig, environment::Error> {
     let listen_addr = environment::lookup(env, "SERVER_LISTEN_ADDR")?;
     let listen_port = environment::lookup(env, "SERVER_LISTEN_PORT")?;
+    let listen_threads = environment::lookup(env, "SERVER_LISTEN_THREADS")?;
 
     Ok(config::ServerConfig{
         listen_addr,
         listen_port,
+        listen_threads,
     })
 }
 
