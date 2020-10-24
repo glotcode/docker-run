@@ -21,28 +21,57 @@ use docker_run::api;
 
 fn main() {
     env_logger::init();
-    let config = prepare_config();
 
-    let server = Arc::new(tiny_http::Server::http(config.server.listen_addr_with_port()).unwrap());
+    match start() {
+        Ok(()) => {}
 
-    let mut handles = Vec::new();
+        Err(Error::BuildConfig(err)) => {
+            log::error!("Failed to build config: {}", err);
+            process::exit(1)
+        }
 
-    for _ in 0..config.server.listen_threads {
+        Err(Error::StartServer(err)) => {
+            log::error!("Failed to start server: {}", err);
+            process::exit(1)
+        }
+    }
+}
+
+enum Error {
+    BuildConfig(environment::Error),
+    StartServer(Box<dyn std::error::Error + Send + Sync + 'static>),
+}
+
+fn start() -> Result<(), Error> {
+    let env = environment::get_environment();
+    let config = build_config(&env)
+        .map_err(Error::BuildConfig)?;
+
+    let server = tiny_http::Server::http(config.server.listen_addr_with_port())
+        .map(Arc::new)
+        .map_err(Error::StartServer)?;
+
+    let handles = (0..config.server.listen_threads).fold(Vec::new(), |mut acc, _| {
         let server = server.clone();
         let config = config.clone();
 
-        handles.push(thread::spawn(move || {
+        acc.push(thread::spawn(move || {
             for request in server.incoming_requests() {
                 handle_request(&config, request);
             }
         }));
-    }
+
+        acc
+    });
 
     log::info!("Listening on {} with {} threads", config.server.listen_addr_with_port(), config.server.listen_threads);
 
-    for h in handles {
-        h.join().unwrap();
+    // Wait for threads to complete, in practice this will block forever unless there is a panic
+    for handle in handles {
+        handle.join().unwrap();
     }
+
+    Ok(())
 }
 
 
@@ -106,20 +135,6 @@ fn error_response(mut request: tiny_http::Request, error: api::Error) {
 }
 
 
-fn prepare_config() -> config::Config {
-    let env = environment::get_environment();
-
-    match build_config(&env) {
-        Ok(cfg) => {
-            cfg
-        }
-
-        Err(err) => {
-            log::error!("Failed to build config: {}", err);
-            process::exit(1)
-        }
-    }
-}
 
 fn build_config(env: &environment::Environment) -> Result<config::Config, environment::Error> {
     let server = build_server_config(env)?;
