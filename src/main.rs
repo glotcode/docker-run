@@ -77,7 +77,7 @@ fn success_response(mut request: tiny_http::Request, data: &[u8]) {
     request.respond(response);
 }
 
-fn error_response(mut request: tiny_http::Request, error: api::run::Error) {
+fn error_response(mut request: tiny_http::Request, error: api::Error) {
     let response = Response::new(
         tiny_http::StatusCode(error.status_code),
         vec![

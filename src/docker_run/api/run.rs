@@ -6,6 +6,7 @@ use std::io;
 use crate::docker_run::docker;
 use crate::docker_run::run;
 use crate::docker_run::config;
+use crate::docker_run::api;
 
 #[derive(Debug, serde::Deserialize)]
 struct RunRequest {
@@ -23,28 +24,14 @@ struct RunLimits {
 
 
 
-#[derive(Debug)]
-pub struct Error {
-    pub status_code: u16,
-    pub body: Vec<u8>,
-}
-
-#[derive(Debug, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ErrorBody {
-    pub error: String,
-    pub message: String,
-}
-
-
-pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Result<Vec<u8>, Error> {
+pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Result<Vec<u8>, api::Error> {
 
     let reader = request.as_reader();
 
     let run_request: RunRequest = serde_json::from_reader(reader)
-        .map_err(|err| Error{
+        .map_err(|err| api::Error{
             status_code: 400,
-            body: serde_json::to_vec(&ErrorBody{
+            body: serde_json::to_vec(&api::ErrorBody{
                 error: "request.parse".to_string(),
                 message: format!("Failed to parse json from request: {}", err),
             }).unwrap_or(err.to_string().as_bytes().to_vec())
@@ -64,9 +51,9 @@ pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Resu
     match res {
         Ok(data) => {
             serde_json::to_vec(&data).map_err(|err| {
-                Error{
+                api::Error{
                     status_code: 400,
-                    body: serde_json::to_vec(&ErrorBody{
+                    body: serde_json::to_vec(&api::ErrorBody{
                         error: "response.serialize".to_string(),
                         message: format!("Failed to serialize response: {}", err),
                     }).unwrap_or(err.to_string().as_bytes().to_vec())
@@ -75,10 +62,10 @@ pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Resu
         }
 
         Err(err) => {
-            Err(Error{
+            Err(api::Error{
                 // TODO: set correct status code
                 status_code: 400,
-                body: serde_json::to_vec(&ErrorBody{
+                body: serde_json::to_vec(&api::ErrorBody{
                     error: error_code(&err),
                     message: err.to_string(),
                 }).unwrap_or(err.to_string().as_bytes().to_vec())
