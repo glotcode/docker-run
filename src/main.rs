@@ -1,19 +1,13 @@
-#![allow(warnings)]
+#![allow(dead_code)]
+// #![allow(warnings)]
 
 mod docker_run;
 
-use std::io;
 use std::process;
-use std::sync::Arc;
-use std::thread;
 use std::time::Duration;
-use serde::Serialize;
-use serde_json::{Value, Map};
-use serde_json;
 use tiny_http;
 
 
-use docker_run::docker;
 use docker_run::run;
 use docker_run::config;
 use docker_run::environment;
@@ -63,13 +57,21 @@ fn handle_request(config: &config::Config, mut request: tiny_http::Request) {
 
     let handler = router(&request);
 
-    match handler(&config, &mut request) {
+    let result = match handler(&config, &mut request) {
         Ok(data) => {
             api::success_response(request, &data)
         }
 
         Err(err) => {
             api::error_response(request, err)
+        }
+    };
+
+    match result {
+        Ok(()) => {},
+
+        Err(err) => {
+            log::error!("Failure while sending response: {}", err)
         }
     }
 }

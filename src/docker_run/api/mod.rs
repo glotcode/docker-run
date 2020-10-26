@@ -37,7 +37,7 @@ pub fn start<C, H>(config: Config<C, H>) -> Result<(), Error>
             loop {
                 match server.accept() {
                     Ok(client) => {
-                        for mut request in client {
+                        for request in client {
                             request_handler(&handler_config, request);
                         }
                     }
@@ -65,7 +65,7 @@ pub fn start<C, H>(config: Config<C, H>) -> Result<(), Error>
 }
 
 
-pub fn success_response(mut request: tiny_http::Request, data: &[u8]) {
+pub fn success_response(request: tiny_http::Request, data: &[u8]) -> Result<(), io::Error> {
     let response = tiny_http::Response::new(
         tiny_http::StatusCode(200),
         vec![
@@ -76,10 +76,10 @@ pub fn success_response(mut request: tiny_http::Request, data: &[u8]) {
         None,
     );
 
-    request.respond(response);
+    request.respond(response)
 }
 
-pub fn error_response(mut request: tiny_http::Request, error: ErrorResponse) {
+pub fn error_response(request: tiny_http::Request, error: ErrorResponse) -> Result<(), io::Error> {
     let response = tiny_http::Response::new(
         tiny_http::StatusCode(error.status_code),
         vec![
@@ -90,7 +90,7 @@ pub fn error_response(mut request: tiny_http::Request, error: ErrorResponse) {
         None,
     );
 
-    request.respond(response);
+    request.respond(response)
 }
 
 
