@@ -74,7 +74,7 @@ fn handle_request(config: &config::Config, mut request: tiny_http::Request) {
     }
 }
 
-fn router(request: &tiny_http::Request) -> fn(config: &config::Config, request: &mut tiny_http::Request) -> Result<Vec<u8>, api::ErrorResponse> {
+fn router(request: &tiny_http::Request) -> fn(&config::Config, &mut tiny_http::Request) -> Result<Vec<u8>, api::ErrorResponse> {
     match (request.method(), request.url()) {
         (tiny_http::Method::Get, "/") => {
             api::root::handle
