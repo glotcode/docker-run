@@ -24,12 +24,12 @@ struct RunLimits {
 
 
 
-pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Result<Vec<u8>, api::Error> {
+pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Result<Vec<u8>, api::ErrorResponse> {
 
     let reader = request.as_reader();
 
     let run_request: RunRequest = serde_json::from_reader(reader)
-        .map_err(|err| api::Error{
+        .map_err(|err| api::ErrorResponse{
             status_code: 400,
             body: serde_json::to_vec(&api::ErrorBody{
                 error: "request.parse".to_string(),
@@ -51,7 +51,7 @@ pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Resu
     match res {
         Ok(data) => {
             serde_json::to_vec(&data).map_err(|err| {
-                api::Error{
+                api::ErrorResponse{
                     status_code: 400,
                     body: serde_json::to_vec(&api::ErrorBody{
                         error: "response.serialize".to_string(),
@@ -62,7 +62,7 @@ pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Resu
         }
 
         Err(err) => {
-            Err(api::Error{
+            Err(api::ErrorResponse{
                 // TODO: set correct status code
                 status_code: 400,
                 body: serde_json::to_vec(&api::ErrorBody{

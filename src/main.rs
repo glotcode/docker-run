@@ -32,12 +32,7 @@ fn main() {
         }
 
         Err(Error::StartServer(err)) => {
-            log::error!("Failed to start server: {}", err);
-            process::exit(1)
-        }
-
-        Err(Error::CloneServer(err)) => {
-            log::error!("Failed to clone server: {}", err);
+            log::error!("Failed to start api server: {}", err);
             process::exit(1)
         }
     }
@@ -45,8 +40,7 @@ fn main() {
 
 enum Error {
     BuildConfig(environment::Error),
-    StartServer(io::Error),
-    CloneServer(io::Error),
+    StartServer(api::Error),
 }
 
 fn start() -> Result<(), Error> {
@@ -54,42 +48,14 @@ fn start() -> Result<(), Error> {
     let config = build_config(&env)
         .map_err(Error::BuildConfig)?;
 
-    let server = tiny_http::Server::new(config.server.listen_addr_with_port())
-        .map_err(Error::StartServer)?;
-
-    let mut handles = Vec::new();
-
-    for _ in 0..config.server.worker_threads {
-        let server = server.try_clone().map_err(Error::CloneServer)?;
-        let config = config.clone();
-
-        handles.push(thread::spawn(move || {
-            loop {
-                match server.accept() {
-                    Ok(client) => {
-                        for request in client {
-                            handle_request(&config, request);
-                        }
-                    }
-
-                    Err(err) => {
-                        log::error!("Accept error: {:?}", err);
-                        break;
-                    }
-                }
-            }
-        }))
-    }
-
-
     log::info!("Listening on {} with {} worker threads", config.server.listen_addr_with_port(), config.server.worker_threads);
 
-    // Wait for threads to complete, in practice this will block forever unless there is a panic
-    for handle in handles {
-        handle.join().unwrap();
-    }
-
-    Ok(())
+    api::start(api::Config{
+        listen_addr: config.server.listen_addr_with_port(),
+        worker_threads: config.server.worker_threads,
+        handler_config: config,
+        handler: handle_request,
+    }).map_err(Error::StartServer)
 }
 
 
@@ -97,18 +63,18 @@ fn handle_request(config: &config::Config, mut request: tiny_http::Request) {
 
     let handler = router(&request);
 
-    match handler(config, &mut request) {
+    match handler(&config, &mut request) {
         Ok(data) => {
-            success_response(request, &data)
+            api::success_response(request, &data)
         }
 
         Err(err) => {
-            error_response(request, err)
+            api::error_response(request, err)
         }
     }
 }
 
-fn router(request: &tiny_http::Request) -> fn(config: &config::Config, request: &mut tiny_http::Request) -> Result<Vec<u8>, api::Error> {
+fn router(request: &tiny_http::Request) -> fn(config: &config::Config, request: &mut tiny_http::Request) -> Result<Vec<u8>, api::ErrorResponse> {
     match (request.method(), request.url()) {
         (tiny_http::Method::Get, "/") => {
             api::root::handle
@@ -123,35 +89,6 @@ fn router(request: &tiny_http::Request) -> fn(config: &config::Config, request: 
         }
     }
 }
-
-fn success_response(mut request: tiny_http::Request, data: &[u8]) {
-    let response = tiny_http::Response::new(
-        tiny_http::StatusCode(200),
-        vec![
-            tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap()
-        ],
-        data,
-        Some(data.len()),
-        None,
-    );
-
-    request.respond(response);
-}
-
-fn error_response(mut request: tiny_http::Request, error: api::Error) {
-    let response = tiny_http::Response::new(
-        tiny_http::StatusCode(error.status_code),
-        vec![
-            tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap()
-        ],
-        error.body.as_slice(),
-        Some(error.body.len()),
-        None,
-    );
-
-    request.respond(response);
-}
-
 
 
 fn build_config(env: &environment::Environment) -> Result<config::Config, environment::Error> {

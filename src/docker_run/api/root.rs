@@ -13,7 +13,7 @@ struct Response {
     description: String,
 }
 
-pub fn handle(_: &config::Config, _: &mut tiny_http::Request) -> Result<Vec<u8>, api::Error> {
+pub fn handle(_: &config::Config, _: &mut tiny_http::Request) -> Result<Vec<u8>, api::ErrorResponse> {
 
     let response = Response{
         name: "docker-run".to_string(),
@@ -22,7 +22,7 @@ pub fn handle(_: &config::Config, _: &mut tiny_http::Request) -> Result<Vec<u8>,
     };
 
     serde_json::to_vec_pretty(&response).map_err(|err| {
-        api::Error{
+        api::ErrorResponse{
             status_code: 500,
             body: serde_json::to_vec_pretty(&api::ErrorBody{
                 error: "response.serialize".to_string(),
