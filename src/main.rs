@@ -2,6 +2,7 @@
 
 mod docker_run;
 
+use std::io;
 use std::process;
 use std::sync::Arc;
 use std::thread;
@@ -9,7 +10,7 @@ use std::time::Duration;
 use serde::Serialize;
 use serde_json::{Value, Map};
 use serde_json;
-use tiny_http::{Response, Server};
+use tiny_http;
 
 
 use docker_run::docker;
@@ -39,7 +40,7 @@ fn main() {
 
 enum Error {
     BuildConfig(environment::Error),
-    StartServer(Box<dyn std::error::Error + Send + Sync + 'static>),
+    StartServer(io::Error),
 }
 
 fn start() -> Result<(), Error> {
@@ -47,22 +48,33 @@ fn start() -> Result<(), Error> {
     let config = build_config(&env)
         .map_err(Error::BuildConfig)?;
 
-    let server = tiny_http::Server::http(config.server.listen_addr_with_port())
-        .map(Arc::new)
+    let server = tiny_http::Server::new(config.server.listen_addr_with_port())
         .map_err(Error::StartServer)?;
 
     let handles = (0..config.server.worker_threads).fold(Vec::new(), |mut acc, _| {
-        let server = server.clone();
+        let server = server.try_clone().unwrap();
         let config = config.clone();
 
         acc.push(thread::spawn(move || {
-            for request in server.incoming_requests() {
-                handle_request(&config, request);
+            loop {
+                match server.accept() {
+                    Ok(client) => {
+                        for request in client {
+                            handle_request(&config, request);
+                        }
+                    }
+
+                    Err(err) => {
+                        log::error!("Accept error: {:?}", err);
+                        break;
+                    }
+                }
             }
         }));
 
         acc
     });
+
 
     log::info!("Listening on {} with {} worker threads", config.server.listen_addr_with_port(), config.server.worker_threads);
 
@@ -107,7 +119,7 @@ fn router(request: &tiny_http::Request) -> fn(config: &config::Config, request: 
 }
 
 fn success_response(mut request: tiny_http::Request, data: &[u8]) {
-    let response = Response::new(
+    let response = tiny_http::Response::new(
         tiny_http::StatusCode(200),
         vec![
             tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap()
@@ -121,7 +133,7 @@ fn success_response(mut request: tiny_http::Request, data: &[u8]) {
 }
 
 fn error_response(mut request: tiny_http::Request, error: api::Error) {
-    let response = Response::new(
+    let response = tiny_http::Response::new(
         tiny_http::StatusCode(error.status_code),
         vec![
             tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap()
