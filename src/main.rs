@@ -35,12 +35,18 @@ fn main() {
             log::error!("Failed to start server: {}", err);
             process::exit(1)
         }
+
+        Err(Error::CloneServer(err)) => {
+            log::error!("Failed to clone server: {}", err);
+            process::exit(1)
+        }
     }
 }
 
 enum Error {
     BuildConfig(environment::Error),
     StartServer(io::Error),
+    CloneServer(io::Error),
 }
 
 fn start() -> Result<(), Error> {
@@ -51,11 +57,13 @@ fn start() -> Result<(), Error> {
     let server = tiny_http::Server::new(config.server.listen_addr_with_port())
         .map_err(Error::StartServer)?;
 
-    let handles = (0..config.server.worker_threads).fold(Vec::new(), |mut acc, _| {
-        let server = server.try_clone().unwrap();
+    let mut handles = Vec::new();
+
+    for _ in 0..config.server.worker_threads {
+        let server = server.try_clone().map_err(Error::CloneServer)?;
         let config = config.clone();
 
-        acc.push(thread::spawn(move || {
+        handles.push(thread::spawn(move || {
             loop {
                 match server.accept() {
                     Ok(client) => {
@@ -70,10 +78,8 @@ fn start() -> Result<(), Error> {
                     }
                 }
             }
-        }));
-
-        acc
-    });
+        }))
+    }
 
 
     log::info!("Listening on {} with {} worker threads", config.server.listen_addr_with_port(), config.server.worker_threads);
