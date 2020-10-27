@@ -1,5 +1,6 @@
 pub mod root;
 pub mod run;
+pub mod version;
 pub mod not_found;
 
 use std::io;

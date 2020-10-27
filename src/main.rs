@@ -1,5 +1,4 @@
-#![allow(dead_code)]
-// #![allow(warnings)]
+#![allow(warnings)]
 
 mod docker_run;
 
@@ -84,6 +83,10 @@ fn router(request: &tiny_http::Request) -> fn(&config::Config, &mut tiny_http::R
 
         (tiny_http::Method::Post, "/run") => {
             api::run::handle
+        }
+
+        (tiny_http::Method::Get, "/version") => {
+            api::version::handle
         }
 
         _ => {

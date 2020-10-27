@@ -116,12 +116,35 @@ impl fmt::Display for PrepareRequestError {
 }
 
 
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "PascalCase")]
+#[derive(Deserialize, Serialize, Clone, Debug)]
+#[serde(rename_all(deserialize = "PascalCase"))]
+#[serde(rename_all(serialize = "camelCase"))]
 pub struct VersionResponse {
     pub version: String,
     pub api_version: String,
+    pub git_commit: String,
+    pub go_version: String,
+    pub os: String,
+    pub arch: String,
     pub kernel_version: String,
+    pub build_time: String,
+    pub platform: VersionPlatformResponse,
+    pub components: Vec<VersionComponentResponse>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
+#[serde(rename_all(deserialize = "PascalCase"))]
+#[serde(rename_all(serialize = "camelCase"))]
+pub struct VersionPlatformResponse {
+    pub name: String,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
+#[serde(rename_all(deserialize = "PascalCase"))]
+#[serde(rename_all(serialize = "camelCase"))]
+pub struct VersionComponentResponse {
+    pub name: String,
+    pub version: String,
 }
 
 pub fn version_request() -> Result<http::Request<http_extra::Body>, http::Error> {
@@ -140,8 +163,9 @@ pub fn version<Stream: Read + Write>(stream: Stream) -> Result<http::Response<Ve
         .map_err(Error::SendRequest)
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "PascalCase")]
+#[derive(Deserialize, Serialize, Clone, Debug)]
+#[serde(rename_all(deserialize = "PascalCase"))]
+#[serde(rename_all(serialize = "camelCase"))]
 pub struct ContainerCreatedResponse {
     pub id: String,
     pub warnings: Vec<String>,
