@@ -9,12 +9,12 @@ use serde_json::{Value, Map};
 use std::net::Shutdown;
 use std::path::PathBuf;
 use crate::docker_run::docker;
+use crate::docker_run::unix_stream;
 
 
 #[derive(Debug)]
 pub enum Error {
-    Connect(io::Error),
-    SetStreamTimeout(io::Error),
+    UnixStream(unix_stream::Error),
     CreateContainer(docker::Error),
     StartContainer(docker::Error),
     AttachContainer(docker::Error),
@@ -31,12 +31,8 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Error::Connect(err) => {
-                write!(f, "Failed to connect to docker unix socket: {}", err)
-            }
-
-            Error::SetStreamTimeout(err) => {
-                write!(f, "Failed set timeout on unix socket: {}", err)
+            Error::UnixStream(err) => {
+                write!(f, "Unix socket failure: {}", err)
             }
 
             Error::CreateContainer(err) => {
@@ -98,8 +94,8 @@ pub struct Limits {
 
 
 
-pub fn run<T: Serialize>(stream_config: UnixStreamConfig, run_request: RunRequest<T>) -> Result<Map<String, Value>, Error> {
-    let container_response = with_unixstream(&stream_config, |stream| {
+pub fn run<T: Serialize>(stream_config: unix_stream::Config, run_request: RunRequest<T>) -> Result<Map<String, Value>, Error> {
+    let container_response = unix_stream::with_stream(&stream_config, Error::UnixStream, |stream| {
         docker::create_container(stream, &run_request.container_config)
             .map_err(Error::CreateContainer)
     })?;
@@ -108,7 +104,7 @@ pub fn run<T: Serialize>(stream_config: UnixStreamConfig, run_request: RunReques
 
     let result = run_with_container(&stream_config, run_request, &container_id);
 
-    let _ = with_unixstream(&stream_config, |stream| {
+    let _ = unix_stream::with_stream(&stream_config, Error::UnixStream, |stream| {
         match docker::remove_container(stream, &container_id) {
             Ok(_) => {}
 
@@ -123,19 +119,19 @@ pub fn run<T: Serialize>(stream_config: UnixStreamConfig, run_request: RunReques
     result
 }
 
-pub fn run_with_container<T: Serialize>(stream_config: &UnixStreamConfig, run_request: RunRequest<T>, container_id: &str) -> Result<Map<String, Value>, Error> {
+pub fn run_with_container<T: Serialize>(stream_config: &unix_stream::Config, run_request: RunRequest<T>, container_id: &str) -> Result<Map<String, Value>, Error> {
 
-    with_unixstream(&stream_config, |stream| {
+    unix_stream::with_stream(&stream_config, Error::UnixStream, |stream| {
         docker::start_container(stream, &container_id)
             .map_err(Error::StartContainer)
     })?;
 
-    let run_config = UnixStreamConfig{
+    let run_config = unix_stream::Config{
         read_timeout: run_request.limits.max_execution_time,
         ..stream_config.clone()
     };
 
-    with_unixstream(&run_config, |stream| {
+    unix_stream::with_stream(&run_config, Error::UnixStream, |stream| {
         run_code(stream, &container_id, &run_request)
     })
 }
@@ -172,34 +168,6 @@ pub fn run_code<Stream, Payload>(mut stream: Stream, container_id: &str, run_req
             Err(Error::StreamStdoutDecode(err))
         }
     }
-}
-
-
-#[derive(Debug, Clone)]
-pub struct UnixStreamConfig {
-    pub path: PathBuf,
-    pub read_timeout: Duration,
-    pub write_timeout: Duration,
-}
-
-fn with_unixstream<F, T>(config: &UnixStreamConfig, f: F) -> Result<T, Error>
-    where
-        F: FnOnce(&mut UnixStream) -> Result<T, Error> {
-
-    let mut stream = UnixStream::connect(&config.path)
-        .map_err(Error::Connect)?;
-
-    stream.set_read_timeout(Some(config.read_timeout))
-        .map_err(Error::SetStreamTimeout)?;
-
-    stream.set_write_timeout(Some(config.write_timeout))
-        .map_err(Error::SetStreamTimeout)?;
-
-    let result = f(&mut stream)?;
-
-    let _ = stream.shutdown(Shutdown::Both);
-
-    Ok(result)
 }
 
 

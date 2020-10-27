@@ -8,9 +8,9 @@ use std::time::Duration;
 use tiny_http;
 
 
-use docker_run::run;
 use docker_run::config;
 use docker_run::environment;
+use docker_run::unix_stream;
 use docker_run::api;
 
 
@@ -116,12 +116,12 @@ fn build_server_config(env: &environment::Environment) -> Result<config::ServerC
 }
 
 
-fn build_unix_socket_config(env: &environment::Environment) -> Result<run::UnixStreamConfig, environment::Error> {
+fn build_unix_socket_config(env: &environment::Environment) -> Result<unix_stream::Config, environment::Error> {
     let path = environment::lookup(env, "UNIX_SOCKET_PATH")?;
     let read_timeout = environment::lookup(env, "UNIX_SOCKET_READ_TIMEOUT")?;
     let write_timeout = environment::lookup(env, "UNIX_SOCKET_WRITE_TIMEOUT")?;
 
-    Ok(run::UnixStreamConfig{
+    Ok(unix_stream::Config{
         path,
         read_timeout: Duration::from_secs(read_timeout),
         write_timeout: Duration::from_secs(write_timeout),

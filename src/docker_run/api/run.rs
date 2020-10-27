@@ -75,11 +75,7 @@ pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Resu
 
 pub fn error_code(error: &run::Error) -> String {
     match error {
-        run::Error::Connect(_) => {
-            "docker.connect".to_string()
-        }
-
-        run::Error::SetStreamTimeout(_) => {
+        run::Error::UnixStream(_) => {
             "docker.unixsocket".to_string()
         }
 

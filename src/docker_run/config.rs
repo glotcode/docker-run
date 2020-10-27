@@ -1,9 +1,9 @@
-use crate::docker_run::run;
+use crate::docker_run::unix_stream;
 
 #[derive(Clone, Debug)]
 pub struct Config {
     pub server: ServerConfig,
-    pub unix_socket: run::UnixStreamConfig,
+    pub unix_socket: unix_stream::Config,
 }
 
 
