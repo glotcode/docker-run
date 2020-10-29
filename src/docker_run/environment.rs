@@ -48,3 +48,11 @@ impl fmt::Display for Error {
         }
     }
 }
+
+
+pub fn comma_separated_string(s: String) -> Vec<String> {
+    s.split(',')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect()
+}

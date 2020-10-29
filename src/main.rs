@@ -151,6 +151,8 @@ fn build_container_config(env: &environment::Environment) -> Result<run::Contain
     let ulimit_nofile_hard = environment::lookup(env, "DOCKER_CONTAINER_ULIMIT_NOFILE_HARD")?;
     let ulimit_nproc_soft = environment::lookup(env, "DOCKER_CONTAINER_ULIMIT_NPROC_SOFT")?;
     let ulimit_nproc_hard = environment::lookup(env, "DOCKER_CONTAINER_ULIMIT_NPROC_HARD")?;
+    let cap_add = environment::lookup(env, "DOCKER_CONTAINER_CAP_ADD").unwrap_or_default();
+    let cap_drop = environment::lookup(env, "DOCKER_CONTAINER_CAP_DROP").unwrap_or_default();
 
     Ok(run::ContainerConfig{
         hostname,
@@ -160,6 +162,8 @@ fn build_container_config(env: &environment::Environment) -> Result<run::Contain
         ulimit_nofile_hard,
         ulimit_nproc_soft,
         ulimit_nproc_hard,
+        cap_add: environment::comma_separated_string(cap_add),
+        cap_drop: environment::comma_separated_string(cap_drop),
     })
 }
 

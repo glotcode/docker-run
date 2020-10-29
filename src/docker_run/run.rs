@@ -102,7 +102,6 @@ pub fn run_code<Stream, Payload>(mut stream: Stream, container_id: &str, run_req
 }
 
 
-// TODO: add config for capabilities
 #[derive(Debug, Clone)]
 pub struct ContainerConfig {
     pub hostname: String,
@@ -112,6 +111,8 @@ pub struct ContainerConfig {
     pub ulimit_nofile_hard: i64,
     pub ulimit_nproc_soft: i64,
     pub ulimit_nproc_hard: i64,
+    pub cap_add: Vec<String>,
+    pub cap_drop: Vec<String>,
 }
 
 
