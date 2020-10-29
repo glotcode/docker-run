@@ -4,8 +4,6 @@ mod docker_run;
 
 use std::process;
 use std::time::Duration;
-use tiny_http;
-
 
 use docker_run::config;
 use docker_run::environment;

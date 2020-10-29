@@ -26,7 +26,7 @@ pub fn handle(_: &config::Config, _: &mut tiny_http::Request) -> Result<Vec<u8>,
             body: serde_json::to_vec_pretty(&api::ErrorBody{
                 error: "response.serialize".to_string(),
                 message: format!("Failed to serialize response: {}", err),
-            }).unwrap_or(err.to_string().as_bytes().to_vec())
+            }).unwrap_or_else(|_| err.to_string().as_bytes().to_vec())
         }
     })
 }

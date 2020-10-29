@@ -1,4 +1,3 @@
-use std::convert;
 use std::fmt;
 
 use crate::docker_run::config;
@@ -13,7 +12,7 @@ struct Response {
 }
 
 
-pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Result<Vec<u8>, api::ErrorResponse> {
+pub fn handle(config: &config::Config, _: &mut tiny_http::Request) -> Result<Vec<u8>, api::ErrorResponse> {
 
     match docker_version(&config.unix_socket) {
         Ok(data) => {
@@ -23,7 +22,7 @@ pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Resu
                     body: serde_json::to_vec_pretty(&api::ErrorBody{
                         error: "response.serialize".to_string(),
                         message: format!("Failed to serialize response: {}", err),
-                    }).unwrap_or(err.to_string().as_bytes().to_vec())
+                    }).unwrap_or_else(|_| err.to_string().as_bytes().to_vec())
                 }
             })
         }
@@ -35,7 +34,7 @@ pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Resu
                 body: serde_json::to_vec_pretty(&api::ErrorBody{
                     error: error_code(&err),
                     message: err.to_string(),
-                }).unwrap_or(err.to_string().as_bytes().to_vec())
+                }).unwrap_or_else(|_| err.to_string().as_bytes().to_vec())
             })
         }
     }

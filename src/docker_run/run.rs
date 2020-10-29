@@ -1,13 +1,10 @@
-use std::os::unix::net::UnixStream;
 use std::io;
-use std::io::{Read, Write};
 use std::time::Duration;
 use std::str;
 use std::fmt;
 use serde::Serialize;
 use serde_json::{Value, Map};
-use std::net::Shutdown;
-use std::path::PathBuf;
+
 use crate::docker_run::docker;
 use crate::docker_run::unix_stream;
 
@@ -138,7 +135,7 @@ pub fn run_with_container<T: Serialize>(stream_config: &unix_stream::Config, run
 
 pub fn run_code<Stream, Payload>(mut stream: Stream, container_id: &str, run_request: &RunRequest<Payload>) -> Result<Map<String, Value>, Error>
     where
-        Stream: Read + Write,
+        Stream: io::Read + io::Write,
         Payload: Serialize,
     {
 

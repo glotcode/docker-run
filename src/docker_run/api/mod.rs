@@ -6,7 +6,6 @@ pub mod not_found;
 use std::io;
 use std::fmt;
 use std::thread;
-use tiny_http;
 
 
 
