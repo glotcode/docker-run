@@ -12,7 +12,8 @@ struct Response {
 }
 
 
-pub fn handle(config: &config::Config, _: &mut tiny_http::Request) -> Result<Vec<u8>, api::ErrorResponse> {
+pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Result<Vec<u8>, api::ErrorResponse> {
+    api::check_access_token(&config.api, request)?;
 
     match docker_version(&config.unix_socket) {
         Ok(data) => {

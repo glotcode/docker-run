@@ -97,12 +97,14 @@ fn router(request: &tiny_http::Request) -> fn(&config::Config, &mut tiny_http::R
 
 fn build_config(env: &environment::Environment) -> Result<config::Config, environment::Error> {
     let server = build_server_config(env)?;
+    let api = build_api_config(env)?;
     let unix_socket = build_unix_socket_config(env)?;
     let container = build_container_config(env)?;
     let run = build_run_config(env)?;
 
     Ok(config::Config{
         server,
+        api,
         unix_socket,
         container,
         run,
@@ -118,6 +120,14 @@ fn build_server_config(env: &environment::Environment) -> Result<config::ServerC
         listen_addr,
         listen_port,
         worker_threads,
+    })
+}
+
+fn build_api_config(env: &environment::Environment) -> Result<api::ApiConfig, environment::Error> {
+    let access_token = environment::lookup(env, "API_ACCESS_TOKEN")?;
+
+    Ok(api::ApiConfig{
+        access_token,
     })
 }
 

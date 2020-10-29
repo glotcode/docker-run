@@ -64,6 +64,31 @@ pub fn start<C, H>(config: Config<C, H>) -> Result<(), Error>
     Ok(())
 }
 
+#[derive(Debug, Clone)]
+pub struct ApiConfig {
+    pub access_token: ascii::AsciiString,
+}
+
+fn check_access_token(config: &ApiConfig, request: &tiny_http::Request) -> Result<(), ErrorResponse> {
+    let is_allowed = request.headers().iter()
+        .filter(|header| header.field.equiv("X-Access-Token"))
+        .map(|header| header.value.clone())
+        .any(|value| value == config.access_token);
+
+    if is_allowed {
+        Ok(())
+    } else {
+        Err(ErrorResponse{
+            status_code: 401,
+            body: serde_json::to_vec_pretty(&ErrorBody{
+                error: "access_token".to_string(),
+                message: "Missing or wrong access token".to_string(),
+            }).unwrap_or_else(|_| "Missing or wrong access token".to_string().as_bytes().to_vec())
+        })
+    }
+}
+
+
 
 pub fn success_response(request: tiny_http::Request, data: &[u8]) -> Result<(), io::Error> {
     let response = tiny_http::Response::new(
