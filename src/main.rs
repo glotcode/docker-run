@@ -98,11 +98,13 @@ fn router(request: &tiny_http::Request) -> fn(&config::Config, &mut tiny_http::R
 fn build_config(env: &environment::Environment) -> Result<config::Config, environment::Error> {
     let server = build_server_config(env)?;
     let unix_socket = build_unix_socket_config(env)?;
+    let container = build_container_config(env)?;
     let run = build_run_config(env)?;
 
     Ok(config::Config{
         server,
         unix_socket,
+        container,
         run,
     })
 }
@@ -128,6 +130,26 @@ fn build_unix_socket_config(env: &environment::Environment) -> Result<unix_strea
         path,
         read_timeout: Duration::from_secs(read_timeout),
         write_timeout: Duration::from_secs(write_timeout),
+    })
+}
+
+fn build_container_config(env: &environment::Environment) -> Result<run::ContainerConfig, environment::Error> {
+    let hostname = environment::lookup(env, "DOCKER_CONTAINER_HOSTNAME")?;
+    let user = environment::lookup(env, "DOCKER_CONTAINER_USER")?;
+    let memory = environment::lookup(env, "DOCKER_CONTAINER_MEMORY")?;
+    let ulimit_nofile_soft = environment::lookup(env, "DOCKER_CONTAINER_ULIMIT_NOFILE_SOFT")?;
+    let ulimit_nofile_hard = environment::lookup(env, "DOCKER_CONTAINER_ULIMIT_NOFILE_HARD")?;
+    let ulimit_nproc_soft = environment::lookup(env, "DOCKER_CONTAINER_ULIMIT_NPROC_SOFT")?;
+    let ulimit_nproc_hard = environment::lookup(env, "DOCKER_CONTAINER_ULIMIT_NPROC_HARD")?;
+
+    Ok(run::ContainerConfig{
+        hostname,
+        user,
+        memory,
+        ulimit_nofile_soft,
+        ulimit_nofile_hard,
+        ulimit_nproc_soft,
+        ulimit_nproc_hard,
     })
 }
 

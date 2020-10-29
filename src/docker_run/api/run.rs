@@ -25,7 +25,7 @@ pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Resu
             }).unwrap_or_else(|_| err.to_string().as_bytes().to_vec())
         })?;
 
-    let container_config = docker::default_container_config(run_request.image);
+    let container_config = run::prepare_container_config(run_request.image, config.container.clone());
 
     let res = run::run(config.unix_socket.clone(), run::RunRequest{
         container_config,

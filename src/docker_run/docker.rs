@@ -39,40 +39,6 @@ pub struct Ulimit {
     pub hard: i64,
 }
 
-pub fn default_container_config(image_name: String) -> ContainerConfig {
-    ContainerConfig{
-        hostname: "glot-runner".to_string(),
-        user: "glot".to_string(),
-        attach_stdin: true,
-        attach_stdout: true,
-        attach_stderr: true,
-        tty: false,
-        open_stdin: true,
-        stdin_once: true,
-        //cmd: Vec<String>,
-        //entrypoint: Vec<String>,
-        image: image_name,
-        network_disabled: true,
-        host_config: HostConfig{
-            memory: 500000000,
-            privileged: false,
-            cap_add: vec![],
-            cap_drop: vec!["MKNOD".to_string()],
-            ulimits: vec![
-                Ulimit{
-                    name: "nofile".to_string(),
-                    soft: 90,
-                    hard: 100,
-                },
-                Ulimit{
-                    name: "nproc".to_string(),
-                    soft: 90,
-                    hard: 100,
-                },
-            ],
-        },
-    }
-}
 
 #[derive(Debug)]
 pub enum Error {

@@ -9,7 +9,6 @@ use crate::docker_run::docker;
 use crate::docker_run::unix_stream;
 
 
-
 #[derive(Debug)]
 pub struct RunRequest<Payload: Serialize> {
     pub container_config: docker::ContainerConfig,
@@ -99,6 +98,53 @@ pub fn run_code<Stream, Payload>(mut stream: Stream, container_id: &str, run_req
         Err(err) => {
             Err(Error::StreamStdoutDecode(err))
         }
+    }
+}
+
+
+// TODO: add config for capabilities
+#[derive(Debug, Clone)]
+pub struct ContainerConfig {
+    pub hostname: String,
+    pub user: String,
+    pub memory: i64,
+    pub ulimit_nofile_soft: i64,
+    pub ulimit_nofile_hard: i64,
+    pub ulimit_nproc_soft: i64,
+    pub ulimit_nproc_hard: i64,
+}
+
+
+pub fn prepare_container_config(image_name: String, config: ContainerConfig) -> docker::ContainerConfig {
+    docker::ContainerConfig{
+        hostname: config.hostname,
+        user: config.user,
+        attach_stdin: true,
+        attach_stdout: true,
+        attach_stderr: true,
+        tty: false,
+        open_stdin: true,
+        stdin_once: true,
+        image: image_name,
+        network_disabled: true,
+        host_config: docker::HostConfig{
+            memory: config.memory,
+            privileged: false,
+            cap_add: vec![],
+            cap_drop: vec!["MKNOD".to_string()],
+            ulimits: vec![
+                docker::Ulimit{
+                    name: "nofile".to_string(),
+                    soft: config.ulimit_nofile_soft,
+                    hard: config.ulimit_nofile_hard,
+                },
+                docker::Ulimit{
+                    name: "nproc".to_string(),
+                    soft: config.ulimit_nproc_soft,
+                    hard: config.ulimit_nproc_hard,
+                },
+            ],
+        },
     }
 }
 

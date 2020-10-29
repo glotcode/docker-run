@@ -5,6 +5,7 @@ use crate::docker_run::run;
 pub struct Config {
     pub server: ServerConfig,
     pub unix_socket: unix_stream::Config,
+    pub container: run::ContainerConfig,
     pub run: run::Limits,
 }
 
