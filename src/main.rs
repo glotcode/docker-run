@@ -122,9 +122,9 @@ fn build_server_config(env: &environment::Environment) -> Result<config::ServerC
 }
 
 fn build_unix_socket_config(env: &environment::Environment) -> Result<unix_stream::Config, environment::Error> {
-    let path = environment::lookup(env, "UNIX_SOCKET_PATH")?;
-    let read_timeout = environment::lookup(env, "UNIX_SOCKET_READ_TIMEOUT")?;
-    let write_timeout = environment::lookup(env, "UNIX_SOCKET_WRITE_TIMEOUT")?;
+    let path = environment::lookup(env, "DOCKER_UNIX_SOCKET_PATH")?;
+    let read_timeout = environment::lookup(env, "DOCKER_UNIX_SOCKET_READ_TIMEOUT")?;
+    let write_timeout = environment::lookup(env, "DOCKER_UNIX_SOCKET_WRITE_TIMEOUT")?;
 
     Ok(unix_stream::Config{
         path,
