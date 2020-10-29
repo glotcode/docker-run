@@ -8,6 +8,7 @@ use std::time::Duration;
 use docker_run::config;
 use docker_run::environment;
 use docker_run::unix_stream;
+use docker_run::run;
 use docker_run::api;
 
 
@@ -97,10 +98,12 @@ fn router(request: &tiny_http::Request) -> fn(&config::Config, &mut tiny_http::R
 fn build_config(env: &environment::Environment) -> Result<config::Config, environment::Error> {
     let server = build_server_config(env)?;
     let unix_socket = build_unix_socket_config(env)?;
+    let run = build_run_config(env)?;
 
     Ok(config::Config{
         server,
         unix_socket,
+        run,
     })
 }
 
@@ -116,7 +119,6 @@ fn build_server_config(env: &environment::Environment) -> Result<config::ServerC
     })
 }
 
-
 fn build_unix_socket_config(env: &environment::Environment) -> Result<unix_stream::Config, environment::Error> {
     let path = environment::lookup(env, "UNIX_SOCKET_PATH")?;
     let read_timeout = environment::lookup(env, "UNIX_SOCKET_READ_TIMEOUT")?;
@@ -126,5 +128,15 @@ fn build_unix_socket_config(env: &environment::Environment) -> Result<unix_strea
         path,
         read_timeout: Duration::from_secs(read_timeout),
         write_timeout: Duration::from_secs(write_timeout),
+    })
+}
+
+fn build_run_config(env: &environment::Environment) -> Result<run::Limits, environment::Error> {
+    let max_execution_time = environment::lookup(env, "RUN_MAX_EXECUTION_TIME")?;
+    let max_output_size = environment::lookup(env, "RUN_MAX_OUTPUT_SIZE")?;
+
+    Ok(run::Limits{
+        max_execution_time: Duration::from_secs(max_execution_time),
+        max_output_size,
     })
 }

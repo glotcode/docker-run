@@ -9,71 +9,6 @@ use crate::docker_run::docker;
 use crate::docker_run::unix_stream;
 
 
-#[derive(Debug)]
-pub enum Error {
-    UnixStream(unix_stream::Error),
-    CreateContainer(docker::Error),
-    StartContainer(docker::Error),
-    AttachContainer(docker::Error),
-    SerializePayload(serde_json::Error),
-    ReadStream(docker::StreamError),
-    StreamStdinUnexpected(Vec<u8>),
-    StreamStderr(Vec<u8>),
-    StreamStdoutDecode(serde_json::Error),
-}
-
-
-
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Error::UnixStream(err) => {
-                write!(f, "Unix socket failure: {}", err)
-            }
-
-            Error::CreateContainer(err) => {
-                write!(f, "Failed to create container: {}", err)
-            }
-
-            Error::StartContainer(err) => {
-                write!(f, "Failed to start container: {}", err)
-            }
-
-            Error::AttachContainer(err) => {
-                write!(f, "Failed to attach to container: {}", err)
-            }
-
-            Error::SerializePayload(err) => {
-                write!(f, "Failed to send payload to stream: {}", err)
-            }
-
-            Error::ReadStream(err) => {
-                write!(f, "Failed while reading stream: {}", err)
-            }
-
-            Error::StreamStdinUnexpected(bytes) => {
-                let msg = String::from_utf8(bytes.to_vec())
-                    .unwrap_or(format!("{:?}", bytes));
-
-                write!(f, "Code runner returned unexpected stdin data: {}", msg)
-            }
-
-            Error::StreamStderr(bytes) => {
-                let msg = String::from_utf8(bytes.to_vec())
-                    .unwrap_or(format!("{:?}", bytes));
-
-                write!(f, "Code runner failed with the following message: {}", msg)
-            }
-
-            Error::StreamStdoutDecode(err) => {
-                write!(f, "Failed to decode json returned from code runner: {}", err)
-            }
-        }
-    }
-}
-
-
 
 #[derive(Debug)]
 pub struct RunRequest<Payload: Serialize> {
@@ -83,7 +18,7 @@ pub struct RunRequest<Payload: Serialize> {
 }
 
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Limits {
     pub max_execution_time: Duration,
     pub max_output_size: usize,
@@ -163,6 +98,68 @@ pub fn run_code<Stream, Payload>(mut stream: Stream, container_id: &str, run_req
 
         Err(err) => {
             Err(Error::StreamStdoutDecode(err))
+        }
+    }
+}
+
+
+#[derive(Debug)]
+pub enum Error {
+    UnixStream(unix_stream::Error),
+    CreateContainer(docker::Error),
+    StartContainer(docker::Error),
+    AttachContainer(docker::Error),
+    SerializePayload(serde_json::Error),
+    ReadStream(docker::StreamError),
+    StreamStdinUnexpected(Vec<u8>),
+    StreamStderr(Vec<u8>),
+    StreamStdoutDecode(serde_json::Error),
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Error::UnixStream(err) => {
+                write!(f, "Unix socket failure: {}", err)
+            }
+
+            Error::CreateContainer(err) => {
+                write!(f, "Failed to create container: {}", err)
+            }
+
+            Error::StartContainer(err) => {
+                write!(f, "Failed to start container: {}", err)
+            }
+
+            Error::AttachContainer(err) => {
+                write!(f, "Failed to attach to container: {}", err)
+            }
+
+            Error::SerializePayload(err) => {
+                write!(f, "Failed to send payload to stream: {}", err)
+            }
+
+            Error::ReadStream(err) => {
+                write!(f, "Failed while reading stream: {}", err)
+            }
+
+            Error::StreamStdinUnexpected(bytes) => {
+                let msg = String::from_utf8(bytes.to_vec())
+                    .unwrap_or(format!("{:?}", bytes));
+
+                write!(f, "Code runner returned unexpected stdin data: {}", msg)
+            }
+
+            Error::StreamStderr(bytes) => {
+                let msg = String::from_utf8(bytes.to_vec())
+                    .unwrap_or(format!("{:?}", bytes));
+
+                write!(f, "Code runner failed with the following message: {}", msg)
+            }
+
+            Error::StreamStdoutDecode(err) => {
+                write!(f, "Failed to decode json returned from code runner: {}", err)
+            }
         }
     }
 }

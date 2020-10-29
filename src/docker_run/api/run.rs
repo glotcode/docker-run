@@ -1,5 +1,4 @@
 use serde_json::{Value, Map};
-use std::time::Duration;
 
 use crate::docker_run::docker;
 use crate::docker_run::run;
@@ -9,17 +8,8 @@ use crate::docker_run::api;
 #[derive(Debug, serde::Deserialize)]
 struct RunRequest {
     image: String,
-    limits: RunLimits,
     payload: Map<String, Value>,
 }
-
-#[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct RunLimits {
-    max_execution_time: u64,
-    max_output_size: usize,
-}
-
 
 
 pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Result<Vec<u8>, api::ErrorResponse> {
@@ -40,10 +30,7 @@ pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Resu
     let res = run::run(config.unix_socket.clone(), run::RunRequest{
         container_config,
         payload: run_request.payload,
-        limits: run::Limits{
-            max_execution_time: Duration::from_secs(run_request.limits.max_execution_time),
-            max_output_size: run_request.limits.max_output_size,
-        },
+        limits: config.run.clone(),
     });
 
     match res {
