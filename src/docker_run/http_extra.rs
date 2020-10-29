@@ -1,5 +1,6 @@
 use http::{Request, Response};
 use http::header;
+use http::status;
 use http::header::CONTENT_LENGTH;
 use http::response;
 use std::io::{Read, Write};
@@ -27,6 +28,7 @@ pub enum Error {
     WriteRequest(io::Error),
     ReadResponse(io::Error),
     ParseResponseHead(ParseError),
+    BadStatus(status::StatusCode, Vec<u8>),
     ReadBody(io::Error),
     DeserializeBody(serde_json::Error),
 }
@@ -48,6 +50,13 @@ impl fmt::Display for Error {
 
             Error::ReadBody(err) => {
                 write!(f, "Failed read to response body: {}", err)
+            }
+
+            Error::BadStatus(status_code, body) => {
+                let msg = String::from_utf8(body.to_vec())
+                    .unwrap_or(format!("{:?}", body));
+
+                write!(f, "Unexpected status code {}: {}", status_code, msg)
             }
 
             Error::DeserializeBody(err) => {
@@ -81,6 +90,11 @@ pub fn send_request<Stream, ResponseBody>(mut stream: Stream, req: Request<Body>
 
     let raw_body = read_response_body(content_length, reader)
         .map_err(Error::ReadBody)?;
+
+    err_if_false(response_parts.status.is_success(), Error::BadStatus(
+            response_parts.status,
+            raw_body.clone()
+    ))?;
 
     let body = serde_json::from_slice(&raw_body)
         .map_err(Error::DeserializeBody)?;
@@ -289,4 +303,13 @@ fn to_http_parts(parsed: httparse::Response) -> Result<response::Parts, Response
         .map_err(ResponseError::Builder)?;
 
     Ok(response.into_parts().0)
+}
+
+
+fn err_if_false<E>(value: bool, err: E) -> Result<(), E> {
+    if value {
+        Ok(())
+    } else {
+        Err(err)
+    }
 }
