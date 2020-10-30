@@ -1,5 +1,3 @@
-#![allow(warnings)]
-
 mod docker_run;
 
 use std::process;
