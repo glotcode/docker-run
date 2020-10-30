@@ -131,8 +131,8 @@ pub fn prepare_container_config(image_name: String, config: ContainerConfig) -> 
         host_config: docker::HostConfig{
             memory: config.memory,
             privileged: false,
-            cap_add: vec![],
-            cap_drop: vec!["MKNOD".to_string()],
+            cap_add: config.cap_add,
+            cap_drop: config.cap_drop,
             ulimits: vec![
                 docker::Ulimit{
                     name: "nofile".to_string(),
