@@ -49,8 +49,7 @@ pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Resu
 
         Err(err) => {
             Err(api::ErrorResponse{
-                // TODO: set correct status code
-                status_code: 400,
+                status_code: status_code(&err),
                 body: serde_json::to_vec(&api::ErrorBody{
                     error: error_code(&err),
                     message: err.to_string(),
@@ -60,6 +59,57 @@ pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Resu
     }
 }
 
+pub fn status_code(error: &run::Error) -> u16 {
+    match error {
+        run::Error::UnixStream(_) => {
+            500
+        }
+
+        run::Error::CreateContainer(_) => {
+            400
+        }
+
+        run::Error::StartContainer(_) => {
+            500
+        }
+
+        run::Error::AttachContainer(_) => {
+            500
+        }
+
+        run::Error::SerializePayload(_) => {
+            400
+        }
+
+        run::Error::ReadStream(stream_error) => {
+            match stream_error {
+                docker::StreamError::MaxExecutionTime() => {
+                    400
+                }
+
+                docker::StreamError::MaxReadSize(_) => {
+                    400
+                }
+
+                _ => {
+                    500
+                }
+            }
+        }
+
+        run::Error::StreamStdinUnexpected(_) => {
+            500
+        }
+
+        run::Error::StreamStderr(_) => {
+            500
+        }
+
+        run::Error::StreamStdoutDecode(_) => {
+            500
+        }
+    }
+}
 
 pub fn error_code(error: &run::Error) -> String {
     match error {

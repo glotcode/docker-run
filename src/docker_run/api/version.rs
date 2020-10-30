@@ -30,7 +30,6 @@ pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Resu
 
         Err(err) => {
             Err(api::ErrorResponse{
-                // TODO: set correct status code
                 status_code: 500,
                 body: serde_json::to_vec_pretty(&api::ErrorBody{
                     error: error_code(&err),
