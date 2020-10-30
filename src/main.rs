@@ -162,8 +162,8 @@ fn build_container_config(env: &environment::Environment) -> Result<run::Contain
         ulimit_nofile_hard,
         ulimit_nproc_soft,
         ulimit_nproc_hard,
-        cap_add: environment::comma_separated_string(cap_add),
-        cap_drop: environment::comma_separated_string(cap_drop),
+        cap_add: environment::space_separated_string(cap_add),
+        cap_drop: environment::space_separated_string(cap_drop),
     })
 }
 
