@@ -88,17 +88,9 @@ pub fn run_code<Stream, Payload>(mut stream: Stream, container_id: &str, run_req
     err_if_false(output.stdin.is_empty(), Error::StreamStdinUnexpected(output.stdin))?;
     err_if_false(output.stderr.is_empty(), Error::StreamStderr(output.stderr))?;
 
-
     // Decode stdout data to dict
-    match decode_dict(&output.stdout) {
-        Ok(json_dict) => {
-            Ok(json_dict)
-        }
-
-        Err(err) => {
-            Err(Error::StreamStdoutDecode(err))
-        }
-    }
+    decode_dict(&output.stdout)
+        .map_err(Error::StreamStdoutDecode)
 }
 
 
