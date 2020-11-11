@@ -144,6 +144,7 @@ fn build_container_config(env: &environment::Environment) -> Result<run::Contain
     let hostname = environment::lookup(env, "DOCKER_CONTAINER_HOSTNAME")?;
     let user = environment::lookup(env, "DOCKER_CONTAINER_USER")?;
     let memory = environment::lookup(env, "DOCKER_CONTAINER_MEMORY")?;
+    let network_disabled = environment::lookup(env, "DOCKER_CONTAINER_NETWORK_DISABLED")?;
     let ulimit_nofile_soft = environment::lookup(env, "DOCKER_CONTAINER_ULIMIT_NOFILE_SOFT")?;
     let ulimit_nofile_hard = environment::lookup(env, "DOCKER_CONTAINER_ULIMIT_NOFILE_HARD")?;
     let ulimit_nproc_soft = environment::lookup(env, "DOCKER_CONTAINER_ULIMIT_NPROC_SOFT")?;
@@ -155,6 +156,7 @@ fn build_container_config(env: &environment::Environment) -> Result<run::Contain
         hostname,
         user,
         memory,
+        network_disabled,
         ulimit_nofile_soft,
         ulimit_nofile_hard,
         ulimit_nproc_soft,

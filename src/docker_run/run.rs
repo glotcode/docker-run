@@ -99,6 +99,7 @@ pub struct ContainerConfig {
     pub hostname: String,
     pub user: String,
     pub memory: i64,
+    pub network_disabled: bool,
     pub ulimit_nofile_soft: i64,
     pub ulimit_nofile_hard: i64,
     pub ulimit_nproc_soft: i64,
@@ -119,7 +120,7 @@ pub fn prepare_container_config(image_name: String, config: ContainerConfig) -> 
         open_stdin: true,
         stdin_once: true,
         image: image_name,
-        network_disabled: true,
+        network_disabled: config.network_disabled,
         host_config: docker::HostConfig{
             memory: config.memory,
             privileged: false,
