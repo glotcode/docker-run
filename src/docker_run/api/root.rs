@@ -18,5 +18,5 @@ pub fn handle(_: &config::Config, _: &mut tiny_http::Request) -> Result<api::Suc
         name: "docker-run".to_string(),
         version: VERSION.unwrap_or("unknown").to_string(),
         description: "Api for running code in transient docker containers".to_string(),
-    })
+    }, api::JsonFormat::Pretty)
 }

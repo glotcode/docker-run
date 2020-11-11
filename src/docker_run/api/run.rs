@@ -24,7 +24,7 @@ pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Resu
         limits: config.run.clone(),
     }).map_err(handle_error)?;
 
-    api::prepare_json_response(&run_result)
+    api::prepare_json_response(&run_result, api::JsonFormat::Minimal)
 }
 
 fn handle_error(err: run::Error) -> api::ErrorResponse {

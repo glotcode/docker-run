@@ -108,9 +108,24 @@ pub struct SuccessResponse {
     body: Vec<u8>,
 }
 
+pub enum JsonFormat {
+    Minimal,
+    Pretty,
+}
 
-pub fn prepare_json_response<T: serde::Serialize>(body: &T) -> Result<SuccessResponse, ErrorResponse> {
-    match serde_json::to_vec_pretty(body) {
+
+pub fn prepare_json_response<T: serde::Serialize>(body: &T, format: JsonFormat) -> Result<SuccessResponse, ErrorResponse> {
+    let json_to_vec = match format {
+        JsonFormat::Minimal => {
+            serde_json::to_vec
+        }
+
+        JsonFormat::Pretty => {
+            serde_json::to_vec_pretty
+        }
+    };
+
+    match json_to_vec(body) {
         Ok(data) => {
             Ok(SuccessResponse{
                 status_code: 200,

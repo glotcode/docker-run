@@ -18,7 +18,7 @@ pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Resu
     let data = get_version_info(&config.unix_socket)
         .map_err(handle_error)?;
 
-    api::prepare_json_response(&data)
+    api::prepare_json_response(&data, api::JsonFormat::Pretty)
 }
 
 
