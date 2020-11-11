@@ -78,26 +78,69 @@ fn check_access_token(config: &ApiConfig, request: &tiny_http::Request) -> Resul
     if is_allowed {
         Ok(())
     } else {
-        Err(ErrorResponse{
-            status_code: 401,
-            body: serde_json::to_vec_pretty(&ErrorBody{
-                error: "access_token".to_string(),
-                message: "Missing or wrong access token".to_string(),
-            }).unwrap_or_else(|_| "Missing or wrong access token".to_string().as_bytes().to_vec())
+        Err(authorization_error())
+    }
+}
+
+pub fn authorization_error() -> ErrorResponse {
+    ErrorResponse{
+        status_code: 401,
+        body: ErrorBody{
+            error: "access_token".to_string(),
+            message: "Missing or wrong access token".to_string(),
+        }
+    }
+}
+
+pub fn read_json_body<T: serde::de::DeserializeOwned>(request: &mut tiny_http::Request) -> Result<T, ErrorResponse> {
+    serde_json::from_reader(request.as_reader())
+        .map_err(|err| ErrorResponse{
+            status_code: 400,
+            body: ErrorBody{
+                error: "request.parse".to_string(),
+                message: format!("Failed to parse json from request: {}", err),
+            }
         })
+}
+
+pub struct SuccessResponse {
+    status_code: u16,
+    body: Vec<u8>,
+}
+
+
+pub fn prepare_json_response<T: serde::Serialize>(body: &T) -> Result<SuccessResponse, ErrorResponse> {
+    match serde_json::to_vec_pretty(body) {
+        Ok(data) => {
+            Ok(SuccessResponse{
+                status_code: 200,
+                body: data,
+            })
+        }
+
+        Err(err) => {
+            Err(ErrorResponse{
+                status_code: 500,
+                body: ErrorBody{
+                    error: "response.serialize".to_string(),
+                    message: format!("Failed to serialize response: {}", err),
+                }
+            })
+        }
     }
 }
 
 
+pub fn success_response(request: tiny_http::Request, data: &SuccessResponse) -> Result<(), io::Error> {
+    let body = data.body.as_slice();
 
-pub fn success_response(request: tiny_http::Request, data: &[u8]) -> Result<(), io::Error> {
     let response = tiny_http::Response::new(
-        tiny_http::StatusCode(200),
+        tiny_http::StatusCode(data.status_code),
         vec![
             tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap()
         ],
-        data,
-        Some(data.len()),
+        body,
+        Some(body.len()),
         None,
     );
 
@@ -105,13 +148,16 @@ pub fn success_response(request: tiny_http::Request, data: &[u8]) -> Result<(), 
 }
 
 pub fn error_response(request: tiny_http::Request, error: ErrorResponse) -> Result<(), io::Error> {
+    let error_body = serde_json::to_vec_pretty(&error.body)
+        .unwrap_or_else(|_| b"Failed to serialize error body".to_vec());
+
     let response = tiny_http::Response::new(
         tiny_http::StatusCode(error.status_code),
         vec![
             tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap()
         ],
-        error.body.as_slice(),
-        Some(error.body.len()),
+        error_body.as_slice(),
+        Some(error_body.len()),
         None,
     );
 
@@ -141,10 +187,10 @@ impl fmt::Display for Error {
 #[derive(Debug)]
 pub struct ErrorResponse {
     pub status_code: u16,
-    pub body: Vec<u8>,
+    pub body: ErrorBody,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorBody {
     pub error: String,

@@ -51,9 +51,7 @@ fn start() -> Result<(), Error> {
 
 fn handle_request(config: &config::Config, mut request: tiny_http::Request) {
 
-    let handler = router(&request);
-
-    let result = match handler(&config, &mut request) {
+    let result = match router(&config, &mut request) {
         Ok(data) => {
             api::success_response(request, &data)
         }
@@ -72,22 +70,23 @@ fn handle_request(config: &config::Config, mut request: tiny_http::Request) {
     }
 }
 
-fn router(request: &tiny_http::Request) -> fn(&config::Config, &mut tiny_http::Request) -> Result<Vec<u8>, api::ErrorResponse> {
-    match (request.method(), request.url()) {
-        (tiny_http::Method::Get, "/") => {
-            api::root::handle
+
+fn router(config: &config::Config, request: &mut tiny_http::Request) -> Result<api::SuccessResponse, api::ErrorResponse> {
+    match (request.url(), request.method()) {
+        ("/", tiny_http::Method::Get) => {
+            api::root::handle(config, request)
         }
 
-        (tiny_http::Method::Post, "/run") => {
-            api::run::handle
+        ("/run", tiny_http::Method::Post) => {
+            api::run::handle(config, request)
         }
 
-        (tiny_http::Method::Get, "/version") => {
-            api::version::handle
+        ("/version", tiny_http::Method::Get) => {
+            api::version::handle(config, request)
         }
 
         _ => {
-            api::not_found::handle
+            api::not_found::handle(config, request)
         }
     }
 }

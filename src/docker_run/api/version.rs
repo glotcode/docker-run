@@ -12,29 +12,21 @@ struct Response {
 }
 
 
-pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Result<Vec<u8>, api::ErrorResponse> {
+pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Result<api::SuccessResponse, api::ErrorResponse> {
     api::check_access_token(&config.api, request)?;
 
     match docker_version(&config.unix_socket) {
         Ok(data) => {
-            serde_json::to_vec_pretty(&data).map_err(|err| {
-                api::ErrorResponse{
-                    status_code: 500,
-                    body: serde_json::to_vec_pretty(&api::ErrorBody{
-                        error: "response.serialize".to_string(),
-                        message: format!("Failed to serialize response: {}", err),
-                    }).unwrap_or_else(|_| err.to_string().as_bytes().to_vec())
-                }
-            })
+            api::prepare_json_response(&data)
         }
 
         Err(err) => {
             Err(api::ErrorResponse{
                 status_code: 500,
-                body: serde_json::to_vec_pretty(&api::ErrorBody{
+                body: api::ErrorBody{
                     error: error_code(&err),
                     message: err.to_string(),
-                }).unwrap_or_else(|_| err.to_string().as_bytes().to_vec())
+                }
             })
         }
     }

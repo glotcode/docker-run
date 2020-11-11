@@ -6,54 +6,36 @@ use crate::docker_run::config;
 use crate::docker_run::api;
 
 #[derive(Debug, serde::Deserialize)]
-struct RunRequest {
+struct RequestBody {
     image: String,
     payload: Map<String, Value>,
 }
 
 
-pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Result<Vec<u8>, api::ErrorResponse> {
+pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Result<api::SuccessResponse, api::ErrorResponse> {
     api::check_access_token(&config.api, request)?;
 
-    let reader = request.as_reader();
-
-    let run_request: RunRequest = serde_json::from_reader(reader)
-        .map_err(|err| api::ErrorResponse{
-            status_code: 400,
-            body: serde_json::to_vec(&api::ErrorBody{
-                error: "request.parse".to_string(),
-                message: format!("Failed to parse json from request: {}", err),
-            }).unwrap_or_else(|_| err.to_string().as_bytes().to_vec())
-        })?;
-
-    let container_config = run::prepare_container_config(run_request.image, config.container.clone());
+    let req_body: RequestBody = api::read_json_body(request)?;
+    let container_config = run::prepare_container_config(req_body.image, config.container.clone());
 
     let res = run::run(config.unix_socket.clone(), run::RunRequest{
         container_config,
-        payload: run_request.payload,
+        payload: req_body.payload,
         limits: config.run.clone(),
     });
 
     match res {
         Ok(data) => {
-            serde_json::to_vec(&data).map_err(|err| {
-                api::ErrorResponse{
-                    status_code: 400,
-                    body: serde_json::to_vec(&api::ErrorBody{
-                        error: "response.serialize".to_string(),
-                        message: format!("Failed to serialize response: {}", err),
-                    }).unwrap_or_else(|_| err.to_string().as_bytes().to_vec())
-                }
-            })
+            api::prepare_json_response(&data)
         }
 
         Err(err) => {
             Err(api::ErrorResponse{
                 status_code: status_code(&err),
-                body: serde_json::to_vec(&api::ErrorBody{
+                body: api::ErrorBody{
                     error: error_code(&err),
                     message: err.to_string(),
-                }).unwrap_or_else(|_| err.to_string().as_bytes().to_vec())
+                }
             })
         }
     }
