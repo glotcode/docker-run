@@ -7,7 +7,7 @@ use crate::docker_run::unix_stream;
 
 
 #[derive(Debug, serde::Serialize)]
-struct Response {
+struct VersionInfo {
     docker: docker::VersionResponse,
 }
 
@@ -15,35 +15,48 @@ struct Response {
 pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Result<api::SuccessResponse, api::ErrorResponse> {
     api::check_access_token(&config.api, request)?;
 
-    match docker_version(&config.unix_socket) {
-        Ok(data) => {
-            api::prepare_json_response(&data)
-        }
+    let data = get_version_info(&config.unix_socket)
+        .map_err(handle_error)?;
 
-        Err(err) => {
-            Err(api::ErrorResponse{
-                status_code: 500,
-                body: api::ErrorBody{
-                    error: error_code(&err),
-                    message: err.to_string(),
-                }
-            })
-        }
-    }
+    api::prepare_json_response(&data)
 }
 
 
-fn docker_version(stream_config: &unix_stream::Config) -> Result<Response, Error> {
-    let response = unix_stream::with_stream(&stream_config, Error::UnixStream, |stream| {
+fn get_version_info(stream_config: &unix_stream::Config) -> Result<VersionInfo, Error> {
+    let docker_response = unix_stream::with_stream(&stream_config, Error::UnixStream, |stream| {
         docker::version(stream)
             .map_err(Error::Version)
     })?;
 
-    Ok(Response{
-        docker: response.body().clone(),
+    Ok(VersionInfo{
+        docker: docker_response.body().clone(),
     })
 }
 
+
+fn handle_error(err: Error) -> api::ErrorResponse {
+    match err {
+        Error::UnixStream(_) => {
+            api::ErrorResponse{
+                status_code: 500,
+                body: api::ErrorBody{
+                    error: "docker.unixsocket".to_string(),
+                    message: err.to_string(),
+                }
+            }
+        }
+
+        Error::Version(_) => {
+            api::ErrorResponse{
+                status_code: 500,
+                body: api::ErrorBody{
+                    error: "docker.version".to_string(),
+                    message: err.to_string(),
+                }
+            }
+        }
+    }
+}
 
 
 pub enum Error {
@@ -61,18 +74,6 @@ impl fmt::Display for Error {
             Error::Version(err) => {
                 write!(f, "Failed to get docker version: {}", err)
             }
-        }
-    }
-}
-
-pub fn error_code(error: &Error) -> String {
-    match error {
-        Error::UnixStream(_) => {
-            "docker.unixsocket".to_string()
-        }
-
-        Error::Version(_) => {
-            "docker.version".to_string()
         }
     }
 }

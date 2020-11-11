@@ -18,129 +18,73 @@ pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Resu
     let req_body: RequestBody = api::read_json_body(request)?;
     let container_config = run::prepare_container_config(req_body.image, config.container.clone());
 
-    let res = run::run(config.unix_socket.clone(), run::RunRequest{
+    let run_result = run::run(config.unix_socket.clone(), run::RunRequest{
         container_config,
         payload: req_body.payload,
         limits: config.run.clone(),
-    });
+    }).map_err(handle_error)?;
 
-    match res {
-        Ok(data) => {
-            api::prepare_json_response(&data)
-        }
-
-        Err(err) => {
-            Err(api::ErrorResponse{
-                status_code: status_code(&err),
-                body: api::ErrorBody{
-                    error: error_code(&err),
-                    message: err.to_string(),
-                }
-            })
-        }
-    }
+    api::prepare_json_response(&run_result)
 }
 
-pub fn status_code(error: &run::Error) -> u16 {
-    match error {
+fn handle_error(err: run::Error) -> api::ErrorResponse {
+    match &err {
         run::Error::UnixStream(_) => {
-            500
+            error_response(&err, 500, "docker.unixsocket")
         }
 
         run::Error::CreateContainer(_) => {
-            400
+            error_response(&err, 400, "docker.container.create")
         }
 
         run::Error::StartContainer(_) => {
-            500
+            error_response(&err, 500, "docker.container.start")
         }
 
         run::Error::AttachContainer(_) => {
-            500
+            error_response(&err, 500, "docker.container.attach")
         }
 
         run::Error::SerializePayload(_) => {
-            400
+            error_response(&err, 400, "docker.container.stream.payload.serialize")
         }
 
         run::Error::ReadStream(stream_error) => {
             match stream_error {
                 docker::StreamError::MaxExecutionTime() => {
-                    400
+                    error_response(&err, 400, "limits.execution_time")
                 }
 
                 docker::StreamError::MaxReadSize(_) => {
-                    400
+                    error_response(&err, 400, "limits.read.size")
                 }
 
                 _ => {
-                    500
+                    error_response(&err, 500, "docker.container.stream.read")
                 }
             }
         }
 
         run::Error::StreamStdinUnexpected(_) => {
-            500
+            error_response(&err, 500, "coderunner.stdin")
         }
 
         run::Error::StreamStderr(_) => {
-            500
+            error_response(&err, 500, "coderunner.stderr")
         }
 
         run::Error::StreamStdoutDecode(_) => {
-            500
+            error_response(&err, 500, "coderunner.stdout.decode")
         }
     }
 }
 
-pub fn error_code(error: &run::Error) -> String {
-    match error {
-        run::Error::UnixStream(_) => {
-            "docker.unixsocket".to_string()
-        }
-
-        run::Error::CreateContainer(_) => {
-            "docker.container.create".to_string()
-        }
-
-        run::Error::StartContainer(_) => {
-            "docker.container.start".to_string()
-        }
-
-        run::Error::AttachContainer(_) => {
-            "docker.container.attach".to_string()
-        }
-
-        run::Error::SerializePayload(_) => {
-            "docker.container.stream.payload.serialize".to_string()
-        }
-
-        run::Error::ReadStream(stream_error) => {
-            match stream_error {
-                docker::StreamError::MaxExecutionTime() => {
-                    "limits.execution_time".to_string()
-                }
-
-                docker::StreamError::MaxReadSize(_) => {
-                    "limits.read.size".to_string()
-                }
-
-                _ => {
-                    "docker.container.stream.read".to_string()
-                }
-            }
-        }
-
-        run::Error::StreamStdinUnexpected(_) => {
-            "coderunner.stdin".to_string()
-        }
-
-        run::Error::StreamStderr(_) => {
-            "coderunner.stderr".to_string()
-        }
-
-        run::Error::StreamStdoutDecode(_) => {
-            "coderunner.stdout.decode".to_string()
+fn error_response(err: &run::Error, status_code: u16, error_code: &str) -> api::ErrorResponse {
+    api::ErrorResponse{
+        status_code,
+        body: api::ErrorBody{
+            error: error_code.to_string(),
+            message: err.to_string(),
         }
     }
 }
