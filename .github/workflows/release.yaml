@@ -1,0 +1,44 @@
+name: Build and upload release
+
+on:
+  release:
+    types: [created]
+
+env:
+  APP_NAME: docker-run
+  ARCHIVE_NAME: docker-run_linux-x64.tar.gz
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install latest rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          default: true
+          override: true
+
+      - name: Prepare upload url
+        run: |
+          UPLOAD_URL="$(jq -r '.release.upload_url' "$GITHUB_EVENT_PATH" | sed -e "s/{?name,label}$/?name=${ARCHIVE_NAME}/")"
+          echo "UPLOAD_URL=$UPLOAD_URL" >> $GITHUB_ENV
+
+      - name: Build application
+        run: |
+          cargo build --release
+          tar -czf $ARCHIVE_NAME -C target/release $APP_NAME
+
+      - name: Upload release asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ env.UPLOAD_URL }}
+          asset_path: ${{ env.ARCHIVE_NAME }}
+          asset_name: ${{ env.ARCHIVE_NAME }}
+          asset_content_type: application/gzip
