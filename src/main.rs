@@ -70,7 +70,7 @@ fn start() -> Result<(), Error> {
     let server = api::Server::new(config.server.listen_addr_with_port())
         .map_err(Error::CreateServer)?;
 
-    let workers = server.start(api::Config{
+    let workers = server.start(api::ServerConfig{
         listen_addr: config.server.listen_addr_with_port(),
         worker_threads: config.server.worker_threads,
         handler_config: config,

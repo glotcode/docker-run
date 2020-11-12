@@ -9,7 +9,7 @@ use std::thread;
 
 
 
-pub struct Config<C, H> {
+pub struct ServerConfig<C, H> {
     pub listen_addr: String,
     pub worker_threads: u16,
     pub handler_config: C,
@@ -29,7 +29,7 @@ impl Server {
         })
     }
 
-    pub fn start<C, H>(&self, config: Config<C, H>) -> Result<Workers, Error>
+    pub fn start<C, H>(&self, config: ServerConfig<C, H>) -> Result<Workers, Error>
         where
             C: Send + Clone + 'static,
             H: Send + Copy + 'static,
