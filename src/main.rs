@@ -88,29 +88,7 @@ fn start() -> Result<(), Error> {
 }
 
 
-fn handle_request(config: &config::Config, mut request: tiny_http::Request) {
-
-    let result = match router(&config, &mut request) {
-        Ok(data) => {
-            api::success_response(request, &data)
-        }
-
-        Err(err) => {
-            api::error_response(request, err)
-        }
-    };
-
-    match result {
-        Ok(()) => {},
-
-        Err(err) => {
-            log::error!("Failure while sending response: {}", err)
-        }
-    }
-}
-
-
-fn router(config: &config::Config, request: &mut tiny_http::Request) -> Result<api::SuccessResponse, api::ErrorResponse> {
+fn handle_request(config: &config::Config, request: &mut tiny_http::Request) -> Result<api::SuccessResponse, api::ErrorResponse> {
     match (request.url(), request.method()) {
         ("/", tiny_http::Method::Get) => {
             api::root::handle(config, request)

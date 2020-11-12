@@ -33,7 +33,7 @@ impl Server {
         where
             C: Send + Clone + 'static,
             H: Send + Copy + 'static,
-            H: FnOnce(&C, tiny_http::Request) {
+            H: FnOnce(&C, &mut tiny_http::Request) -> Result<SuccessResponse, ErrorResponse> {
 
         let mut handles = Vec::new();
         let request_handler = config.handler;
@@ -47,8 +47,9 @@ impl Server {
                 loop {
                     match server.accept() {
                         Ok(client) => {
-                            for request in client {
-                                request_handler(&handler_config, request);
+                            for mut request in client {
+                                let response = request_handler(&handler_config, &mut request);
+                                send_response(request, response);
                             }
                         }
 
@@ -71,6 +72,28 @@ impl Server {
         })
     }
 }
+
+fn send_response(request: tiny_http::Request, response: Result<SuccessResponse, ErrorResponse>) {
+    let result = match response {
+        Ok(data) => {
+            success_response(request, &data)
+        }
+
+        Err(data) => {
+            error_response(request, data)
+        }
+    };
+
+    match result {
+        Ok(()) => {},
+
+        Err(err) => {
+            log::error!("Failure while sending response: {}", err)
+        }
+    }
+}
+
+
 
 pub struct Workers {
     handles: Vec<thread::JoinHandle<()>>
