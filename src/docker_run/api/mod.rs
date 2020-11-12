@@ -16,53 +16,77 @@ pub struct Config<C, H> {
     pub handler: H,
 }
 
-pub fn start<C, H>(config: Config<C, H>) -> Result<(), Error>
-    where
-        C: Send + Clone + 'static,
-        H: Send + Copy + 'static,
-        H: FnOnce(&C, tiny_http::Request) {
+pub struct Server {
+    server: tiny_http::Server,
+}
 
-    let server = tiny_http::Server::new(config.listen_addr)
-        .map_err(Error::Bind)?;
+impl Server {
+    pub fn new(listen_addr: String) -> Result<Server, io::Error> {
+        let server = tiny_http::Server::new(listen_addr)?;
 
-    let mut handles = Vec::new();
-    let request_handler = config.handler;
+        Ok(Server{
+            server,
+        })
+    }
 
-    for n in 0..config.worker_threads {
-        let handler_config = config.handler_config.clone();
-        let server = server.try_clone()
-            .map_err(|err| Error::CloneServer(err, n))?;
+    pub fn start<C, H>(&self, config: Config<C, H>) -> Result<Workers, Error>
+        where
+            C: Send + Clone + 'static,
+            H: Send + Copy + 'static,
+            H: FnOnce(&C, tiny_http::Request) {
 
-        handles.push(thread::spawn(move || {
-            loop {
-                match server.accept() {
-                    Ok(client) => {
-                        for request in client {
-                            request_handler(&handler_config, request);
+        let mut handles = Vec::new();
+        let request_handler = config.handler;
+
+        for n in 0..config.worker_threads {
+            let handler_config = config.handler_config.clone();
+            let server = self.server.try_clone()
+                .map_err(|err| Error::CloneServer(err, n))?;
+
+            handles.push(thread::spawn(move || {
+                loop {
+                    match server.accept() {
+                        Ok(client) => {
+                            for request in client {
+                                request_handler(&handler_config, request);
+                            }
+                        }
+
+                        Err(tiny_http::AcceptError::Accept(err)) => {
+                            log::error!("Accept error on thread {}: {:?}", n, err);
+                            break;
+                        }
+
+                        Err(tiny_http::AcceptError::ShuttingDown()) => {
+                            log::info!("Thread {} shutting down", n);
+                            break;
                         }
                     }
-
-                    Err(tiny_http::AcceptError::Accept(err)) => {
-                        log::error!("Accept error on thread {}: {:?}", n, err);
-                        break;
-                    }
-
-                    Err(tiny_http::AcceptError::ShuttingDown()) => {
-                        log::info!("Thread {} shutting down", n);
-                        break;
-                    }
                 }
-            }
-        }))
-    }
+            }))
+        }
 
-    // Wait for threads to complete, in practice this will block forever unless there is a panic
-    for handle in handles {
-        handle.join().unwrap();
+        Ok(Workers{
+            handles
+        })
     }
-
-    Ok(())
 }
+
+pub struct Workers {
+    handles: Vec<thread::JoinHandle<()>>
+}
+
+impl Workers {
+    pub fn wait(self) {
+        // Wait for threads to complete, in practice this will block forever unless:
+        // - The server is shutdown
+        // - One of the threads panics
+        for handle in self.handles {
+            handle.join().unwrap();
+        }
+    }
+}
+
 
 #[derive(Debug, Clone)]
 pub struct ApiConfig {
@@ -181,17 +205,12 @@ pub fn error_response(request: tiny_http::Request, error: ErrorResponse) -> Resu
 
 
 pub enum Error {
-    Bind(io::Error),
     CloneServer(io::Error, u16),
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Error::Bind(err) => {
-                write!(f, "Failed to bind: {}", err)
-            }
-
             Error::CloneServer(err, n) => {
                 write!(f, "Failed to clone server (n = {}): {}", n, err)
             }
