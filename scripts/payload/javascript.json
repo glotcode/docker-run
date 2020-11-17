@@ -1,0 +1,7 @@
+{
+  "language": "javascript",
+  "files": [{
+    "name": "main.js",
+    "content": "console.log(\"Hello World!\");"
+  }]
+}

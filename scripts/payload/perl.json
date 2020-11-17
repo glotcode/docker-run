@@ -1,0 +1,8 @@
+{
+  "language": "perl",
+  "files": [{
+    "name": "main.pl",
+    "content": "print \"Hello World!\\n\";"
+  }]
+}
+

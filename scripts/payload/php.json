@@ -1,0 +1,8 @@
+{
+  "language": "php",
+  "files": [{
+    "name": "main.php",
+    "content": "<?php\n\necho \"Hello World\\n\";"
+  }]
+}
+

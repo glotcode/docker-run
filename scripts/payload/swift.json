@@ -1,0 +1,8 @@
+{
+  "language": "swift",
+  "files": [{
+    "name": "main.swift",
+    "content": "print(\"Hello World!\")"
+  }]
+}
+

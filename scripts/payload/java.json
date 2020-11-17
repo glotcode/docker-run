@@ -1,0 +1,7 @@
+{
+  "language": "java",
+  "files": [{
+    "name": "Main.java",
+    "content": "class Main {\n    public static void main(String[] args) {\n        System.out.println(\"Hello World!\");\n    }\n}"
+  }]
+}

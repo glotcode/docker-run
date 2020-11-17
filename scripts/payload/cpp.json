@@ -1,0 +1,7 @@
+{
+  "language": "cpp",
+  "files": [{
+    "name": "main.cpp",
+    "content": "#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << \"Hello World!\";\n    return 0;\n}"
+  }]
+}

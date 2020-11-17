@@ -1,0 +1,8 @@
+{
+  "language": "ocaml",
+  "files": [{
+    "name": "main.ml",
+    "content": "print_endline \"Hello World!\""
+  }]
+}
+

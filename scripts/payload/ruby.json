@@ -1,0 +1,8 @@
+{
+  "language": "ruby",
+  "files": [{
+    "name": "main.rb",
+    "content": "puts \"Hello World!\""
+  }]
+}
+

@@ -1,0 +1,8 @@
+{
+  "language": "ats",
+  "files": [{
+    "name": "main.dats",
+    "content": "implement main0 () = print\"Hello World!\n\""
+  }]
+}
+

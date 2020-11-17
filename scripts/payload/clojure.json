@@ -1,0 +1,7 @@
+{
+  "language": "clojure",
+  "files": [{
+    "name": "main.clj",
+    "content": "(println \"Hello World!\")"
+  }]
+}

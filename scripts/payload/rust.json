@@ -1,0 +1,8 @@
+{
+  "language": "rust",
+  "files": [{
+    "name": "main.rs",
+    "content": "fn main() {\n    println!(\"Hello World!\");\n}"
+  }]
+}
+

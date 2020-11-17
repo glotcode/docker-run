@@ -1,0 +1,7 @@
+{
+  "language": "elm",
+  "files": [{
+    "name": "main.elm",
+    "content": "import Html exposing (..)\n\nmain =\n    text \"Hello World!\""
+  }]
+}

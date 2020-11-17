@@ -1,0 +1,7 @@
+{
+  "language": "coffeescript",
+  "files": [{
+    "name": "main.coffee",
+    "content": "console.log \"Hello World!\""
+  }]
+}

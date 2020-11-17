@@ -1,0 +1,7 @@
+{
+  "language": "mercury",
+  "files": [{
+    "name": "main.m",
+    "content": ":- module main.\n:- interface.\n:- import_module io.\n\n:- pred main(io::di, io::uo) is det.\n\n:- implementation.\n\nmain(!IO) :-\n\tio.write_string(\"Hello World!\", !IO)."
+  }]
+}

@@ -1,0 +1,7 @@
+{
+  "language": "go",
+  "files": [{
+    "name": "main.go",
+    "content": "package main\n\nimport (\n    \"fmt\"\n)\n\nfunc main() {\n    fmt.Println(\"Hello World!\")\n}\n"
+  }]
+}

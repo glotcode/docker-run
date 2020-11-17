@@ -1,0 +1,8 @@
+{
+  "language": "fsharp",
+  "files": [{
+    "name": "main.fs",
+    "content": "printfn \"Hello World!\""
+  }]
+}
+

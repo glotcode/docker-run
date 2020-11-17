@@ -1,0 +1,7 @@
+{
+  "language": "bash",
+  "files": [{
+    "name": "main.sh",
+    "content": "echo Hello World"
+  }]
+}

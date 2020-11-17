@@ -1,0 +1,7 @@
+{
+  "language": "erlang",
+  "files": [{
+    "name": "main.erl",
+    "content": "% escript will ignore the first line\n\nmain(_) ->\n    io:format(\"Hello World\").\n"
+  }]
+}

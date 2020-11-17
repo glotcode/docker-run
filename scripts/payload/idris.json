@@ -1,0 +1,8 @@
+{
+  "language": "idris",
+  "files": [{
+    "name": "main.idr",
+    "content": "module Main\n\nmain : IO ()\nmain = putStrLn \"Hello World!\""
+  }]
+}
+

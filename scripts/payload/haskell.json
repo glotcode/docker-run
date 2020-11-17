@@ -1,0 +1,7 @@
+{
+  "language": "haskell",
+  "files": [{
+    "name": "main.hs",
+    "content": "main = putStrLn \"Hello World!\""
+  }]
+}

@@ -1,0 +1,8 @@
+{
+  "language": "elixir",
+  "files": [{
+    "name": "main.ex",
+    "content": "IO.puts \"Hello World!\"\n"
+  }]
+}
+
