@@ -1,9 +1,10 @@
-use std::io;
 use std::time::Duration;
 use std::str;
 use std::fmt;
 use serde::Serialize;
 use serde_json::{Value, Map};
+use std::os::unix::net::UnixStream;
+use std::net;
 
 use crate::docker_run::docker;
 use crate::docker_run::unix_stream;
@@ -67,9 +68,8 @@ pub fn run_with_container<T: Serialize>(stream_config: &unix_stream::Config, run
     })
 }
 
-pub fn run_code<Stream, Payload>(mut stream: Stream, container_id: &str, run_request: &RunRequest<Payload>) -> Result<Map<String, Value>, Error>
+pub fn run_code<Payload>(mut stream: &UnixStream, container_id: &str, run_request: &RunRequest<Payload>) -> Result<Map<String, Value>, Error>
     where
-        Stream: io::Read + io::Write,
         Payload: Serialize,
     {
 
@@ -79,6 +79,9 @@ pub fn run_code<Stream, Payload>(mut stream: Stream, container_id: &str, run_req
     // Send payload
     serde_json::to_writer(&mut stream, &run_request.payload)
         .map_err(Error::SerializePayload)?;
+
+    // Shutdown write stream which will trigger an EOF on the reader
+    let _ = stream.shutdown(net::Shutdown::Write);
 
     // Read response
     let output = docker::read_stream(stream, run_request.limits.max_output_size)
