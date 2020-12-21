@@ -1,0 +1,8 @@
+{
+  "language": "raku",
+  "files": [{
+    "name": "main.raku",
+    "content": "say 'Hello 🌎!';"
+  }]
+}
+

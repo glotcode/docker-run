@@ -1,8 +1,0 @@
-{
-  "language": "perl6",
-  "files": [{
-    "name": "main.pl6",
-    "content": "say 'Hello World!';"
-  }]
-}
-
