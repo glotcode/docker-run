@@ -1,7 +1,7 @@
 {
   "language": "elm",
   "files": [{
-    "name": "main.elm",
-    "content": "import Html exposing (..)\n\nmain =\n    text \"Hello World!\""
+    "name": "Main.elm",
+    "content": "module Main exposing (main)\nimport Html exposing (..)\n\nmain =\n    text \"Hello 🌎!\""
   }]
 }
