@@ -2,6 +2,6 @@
   "language": "julia",
   "files": [{
     "name": "main.jl",
-    "content": "println(\"Hello world!\")"
+    "content": "println(\"Hello 🌎!\")"
   }]
 }

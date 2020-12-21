@@ -2,7 +2,7 @@
   "language": "scala",
   "files": [{
     "name": "main.scala",
-    "content": "object Main extends App {\n    println(\"Hello World!\")\n}"
+    "content": "object Main extends App {\n    println(\"Hello 🌎!\")\n}"
   }]
 }
 

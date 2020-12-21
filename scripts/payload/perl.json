@@ -2,7 +2,7 @@
   "language": "perl",
   "files": [{
     "name": "main.pl",
-    "content": "print \"Hello World!\\n\";"
+    "content": "print \"Hello 🌎!\\n\";"
   }]
 }
 

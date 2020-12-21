@@ -2,6 +2,6 @@
   "language": "haskell",
   "files": [{
     "name": "main.hs",
-    "content": "main = putStrLn \"Hello World!\""
+    "content": "main = putStrLn \"Hello 🌎!\""
   }]
 }

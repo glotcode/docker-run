@@ -2,6 +2,6 @@
   "language": "d",
   "files": [{
     "name": "main.d",
-    "content": "import std.stdio;\n\nvoid main()\n{\n    writeln(\"Hello World!\");\n}\n"
+    "content": "import std.stdio;\n\nvoid main()\n{\n    writeln(\"Hello 🌎!\");\n}\n"
   }]
 }

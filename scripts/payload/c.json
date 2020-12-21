@@ -2,6 +2,6 @@
   "language": "c",
   "files": [{
     "name": "main.c",
-    "content": "#include <stdio.h>\n\nint main(void) {\n    printf(\"Hello World!\\n\");\n    return 0;\n}"
+    "content": "#include <stdio.h>\n\nint main(void) {\n    printf(\"Hello 🌎!\\n\");\n    return 0;\n}"
   }]
 }

@@ -2,7 +2,7 @@
   "language": "csharp",
   "files": [{
     "name": "main.cs",
-    "content": "using System;\n\nclass MainClass {\n    static void Main() {\n        Console.WriteLine(\"Hello World!\");\n    }\n}"
+    "content": "using System;\n\nclass MainClass {\n    static void Main() {\n        Console.WriteLine(\"Hello 🌎!\");\n    }\n}"
   }]
 }
 

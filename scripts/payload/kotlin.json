@@ -2,7 +2,7 @@
   "language": "kotlin",
   "files": [{
     "name": "main.kt",
-    "content": "fun main(args : Array<String>){\n        println(\"Hello World!\")\n}"
+    "content": "fun main(args : Array<String>){\n        println(\"Hello 🌎!\")\n}"
   }]
 }
 

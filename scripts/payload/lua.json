@@ -2,7 +2,7 @@
   "language": "lua",
   "files": [{
     "name": "main.lua",
-    "content": "print(\"Hello World!\");"
+    "content": "print(\"Hello 🌎!\");"
   }]
 }
 

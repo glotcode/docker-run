@@ -2,6 +2,6 @@
   "language": "groovy",
   "files": [{
     "name": "main.groovy",
-    "content": "println \"Hello World!\""
+    "content": "println \"Hello 🌎!\""
   }]
 }

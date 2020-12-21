@@ -2,7 +2,7 @@
   "language": "elixir",
   "files": [{
     "name": "main.ex",
-    "content": "IO.puts \"Hello World!\"\n"
+    "content": "IO.puts \"Hello 🌎!\"\n"
   }]
 }
 

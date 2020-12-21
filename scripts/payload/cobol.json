@@ -2,6 +2,6 @@
   "language": "cobol",
   "files": [{
     "name": "main.cob",
-    "content": "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. hello.\n       PROCEDURE DIVISION.\n           DISPLAY 'Hello World'\n           GOBACK\n           .\n"
+    "content": "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. hello.\n       PROCEDURE DIVISION.\n           DISPLAY 'Hello 🌎'\n           GOBACK\n           .\n"
   }]
 }

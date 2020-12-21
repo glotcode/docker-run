@@ -2,6 +2,6 @@
   "language": "typescript",
   "files": [{
     "name": "main.ts",
-    "content": "const hello : string = \"Hello World!\";console.log(hello);"
+    "content": "const hello : string = \"Hello 🌎!\";console.log(hello);"
   }]
 }

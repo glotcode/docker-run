@@ -2,7 +2,7 @@
   "language": "swift",
   "files": [{
     "name": "main.swift",
-    "content": "print(\"Hello World!\")"
+    "content": "print(\"Hello 🌎!\")"
   }]
 }
 
