@@ -3,7 +3,7 @@
 ##### Run code with 
 ```bash
 curl --request POST \
-     --header 'X-Access-Token some-secret-token' \
+     --header 'X-Access-Token: some-secret-token' \
      --header 'Content-type: application/json' \
      --data '{"image": "glot/python:latest", "payload": {"language": "python", "files": [{"name": "main.py", "content": "print(42)"}]}}' \
      --url 'https://<docker-run>/run'
