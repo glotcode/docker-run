@@ -1,8 +1,9 @@
 # docker-run
 
 ## Overview
-docker-run provides a http api for running code in transient docker containers.
-This is used to run code on [glot.io](https://glot.io)
+docker-run provides a http api for running code inside transient docker containers.
+The communication with docker happens via it's unix socket.
+This is used to run code on [glot.io](https://glot.io).
 See the [overview](https://github.com/prasmussen/glot) on how everything is connected.
 
 
