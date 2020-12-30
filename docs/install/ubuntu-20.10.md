@@ -1,4 +1,4 @@
-# Installation instructions for ubuntu 20.09
+# Installation instructions for ubuntu 20.10
 
 #### Install and configure docker
 
