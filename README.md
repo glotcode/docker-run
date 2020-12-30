@@ -7,9 +7,8 @@ This is used to run code on [glot.io](https://glot.io).
 See the [overview](https://github.com/prasmussen/glot) on how everything is connected.
 
 
-## Run
-Download the latest release and start it with the required environment variables.
-See the [systemd service](https://github.com/glotcode/docker-run/blob/main/systemd/docker-run.service) as an example how to start it.
+## Installation instructions
+See [docs/install](docs/install)
 
 
 ## Environment variables
