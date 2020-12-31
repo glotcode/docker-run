@@ -2,9 +2,25 @@
 
 ## Overview
 docker-run provides a http api for running code inside transient docker containers.
-The communication with docker happens via it's unix socket.
+For every run request a new container is started and deleted.
+The payload is passed to the container by attaching to it and writing it to stdin. The result is read from stdout.
+The communication with the docker daemon happens via it's api over the unix socket.
 This is used to run code on [glot.io](https://glot.io).
 See the [overview](https://github.com/prasmussen/glot) on how everything is connected.
+
+
+## Performance
+The following numbers were obtained using [glot-images](https://github.com/glotcode/glot-images)
+on a 5$ linode vm running 'Hello World' with [httpstat](https://github.com/reorx/httpstat)
+multiple times locally on the same host and reading the numbers manually.
+Not scientific numbers, but it will give an indication of the overhead involved.
+
+| Language         | Min          | Max          |
+|:-----------------|:-------------|:-------------|
+| Python           | 250 ms       | 350 ms       |
+| C                | 330 ms       | 430 ms       |
+| Haskell          | 500 ms       | 700 ms       |
+| Java             | 2000 ms      | 2200 ms      |
 
 
 ## Installation instructions
