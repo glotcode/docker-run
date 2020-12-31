@@ -22,6 +22,15 @@ Not scientific numbers, but it will give an indication of the overhead involved.
 | Haskell          | 500 ms       | 700 ms       |
 | Java             | 2000 ms      | 2200 ms      |
 
+#### With [gVisor](https://gvisor.dev/)
+
+| Language         | Min          | Max          |
+|:-----------------|:-------------|:-------------|
+| Python           | 450 ms       | 570 ms       |
+| C                | 1300 ms      | 1500 ms      |
+| Haskell          | 1760 ms      | 2060 ms      |
+| Java             | 4570 ms      | 4800 ms      |
+
 
 ## Installation instructions
 See [docs/install](docs/install)
