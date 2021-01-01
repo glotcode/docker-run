@@ -1,31 +1,19 @@
+# Run code api examples with glot-images
+
+
 ## Run code
 
-##### Run code with 
+#### Request
+
 ```bash
 curl --request POST \
      --header 'X-Access-Token: some-secret-token' \
      --header 'Content-type: application/json' \
      --data '{"image": "glot/python:latest", "payload": {"language": "python", "files": [{"name": "main.py", "content": "print(42)"}]}}' \
-     --url 'https://<docker-run>/run'
+     --url 'http://<docker-run>/run'
 ```
 
-
-## Example data
-
-### Simple example
-##### Request
-```javascript
-{
-  "files": [
-    {
-      "name": "main.py",
-      "content": "print(42)"
-    }
-  ]
-}
-```
-
-##### Response
+#### Response
 ```javascript
 {
   "stdout": "42\n",
@@ -34,21 +22,20 @@ curl --request POST \
 }
 ```
 
-### Read from stdin
-##### Request
-```javascript
-{
-  "stdin": "42",
-  "files": [
-    {
-      "name": "main.py",
-      "content": "print(input('Number from stdin: '))"
-    }
-  ]
-}
+
+## Read data from stdin
+
+#### Request
+
+```bash
+curl --request POST \
+     --header 'X-Access-Token: some-secret-token' \
+     --header 'Content-type: application/json' \
+     --data '{"image": "glot/python:latest", "payload": {"language": "python", "stdin": "42", "files": [{"name": "main.py", "content": "print(input(\"Number from stdin: \"))"}]}}' \
+     --url 'http://<docker-run>/run'
 ```
 
-##### Response
+#### Response
 ```javascript
 {
   "stdout": "Number from stdin: 42\n",
@@ -57,21 +44,18 @@ curl --request POST \
 }
 ```
 
-### Custom run command
-##### Request
-```javascript
-{
-  "command": "bash main.sh 42",
-  "files": [
-    {
-      "name": "main.sh",
-      "content": "echo Number from arg: $1"
-    }
-  ]
-}
+## Custom run command
+
+#### Request
+```bash
+curl --request POST \
+     --header 'X-Access-Token: some-secret-token' \
+     --header 'Content-type: application/json' \
+     --data '{"image": "glot/python:latest", "payload": {"language": "python", "command": "bash main.sh 42", "files": [{"name": "main.sh", "content": "echo Number from arg: $1"}]}}' \
+     --url 'http://<docker-run>/run'
 ```
 
-##### Response
+#### Response
 ```javascript
 {
   "stdout": "Number from arg: 42\n",
