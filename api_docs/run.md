@@ -51,7 +51,7 @@ curl --request POST \
 curl --request POST \
      --header 'X-Access-Token: some-secret-token' \
      --header 'Content-type: application/json' \
-     --data '{"image": "glot/python:latest", "payload": {"language": "python", "command": "bash main.sh 42", "files": [{"name": "main.sh", "content": "echo Number from arg: $1"}]}}' \
+     --data '{"image": "glot/bash:latest", "payload": {"language": "bash", "command": "bash main.sh 42", "files": [{"name": "main.sh", "content": "echo Number from arg: $1"}]}}' \
      --url 'http://<docker-run>/run'
 ```
 
