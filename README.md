@@ -22,7 +22,7 @@ Not scientific numbers, but it will give an indication of the overhead involved.
 | Haskell          | 500 ms       | 700 ms       |
 | Java             | 2000 ms      | 2200 ms      |
 
-#### With [gVisor](https://gvisor.dev/)
+#### With [gVisor](https://gvisor.dev/) (optional)
 
 | Language         | Min          | Max          |
 |:-----------------|:-------------|:-------------|
