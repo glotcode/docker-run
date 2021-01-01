@@ -8,6 +8,21 @@ The communication with the docker daemon happens via it's api over the unix sock
 This is used to run code on [glot.io](https://glot.io).
 
 
+## Api
+| Action                       | Method | Route      | Requires token |
+|:-----------------------------|:-------|:-----------|:---------------|
+| Get service info             | GET    | /          | No             |
+| Get docker info              | GET    | /version   | Yes            |
+| [Run code](api_docs/run.md)  | POST   | /run       | Yes            |
+
+
+## Docker images
+When a run request is posted to docker-run it will create a new temporary container.
+The container is required to listen for a json payload on stdin and must write the
+run result to stdout as a json object containing the properties: stdout, stderr and error.
+The docker images used by [glot.io](https://glot.io) can be found [here](https://github.com/glotcode/glot-images).
+
+
 ## Performance
 The following numbers were obtained using [glot-images](https://github.com/glotcode/glot-images)
 on a 5$ linode vm running 'Hello World' with [httpstat](https://github.com/reorx/httpstat)
@@ -71,18 +86,3 @@ See [docs/install](docs/install)
 | DOCKER_CONTAINER_CAP_DROP              | &lt;space separated list&gt;  | List of capabilies to drop                                                   |
 | RUN_MAX_EXECUTION_TIME                 | &lt;seconds&gt;               | Maximum number of seconds a container is allowed to run                      |
 | RUN_MAX_OUTPUT_SIZE                    | &lt;bytes&gt;                 | Maximum number of bytes allowed from the output of a run                     |
-
-
-## Docker images
-When a run request is posted to docker-run it will create a new temporary container.
-The container is required to listen for a json payload on stdin and must write the
-run result to stdout as a json object containing the properties: stdout, stderr and error.
-The docker images used by [glot.io](https://glot.io) can be found [here](https://github.com/glotcode/glot-images).
-
-
-## Api
-| Action                       | Method | Route      | Requires token |
-|:-----------------------------|:-------|:-----------|:---------------|
-| Get service info             | GET    | /          | No             |
-| Get docker info              | GET    | /version   | Yes            |
-| [Run code](api_docs/run.md)  | POST   | /run       | Yes            |
