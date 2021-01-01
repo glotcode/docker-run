@@ -31,6 +31,18 @@ Not scientific numbers, but it will give an indication of the overhead involved.
 | Java             | 4570 ms      | 4800 ms      |
 
 
+## Security
+Docker containers are not as secure as a vm and there has been weaknesses in the past
+where people have been able to escape a container in specific scenarios.
+The recommended setup is to store any database / user data / secrets on a separate machine then the one that runs docker + docker-run,
+so that if anyone is able to escape the container it will limit what they get access to.
+
+Depending on your use-case you should also consider to:
+* Disable network access using `DOCKER_CONTAINER_NETWORK_DISABLED`
+* Drop [capabilities](https://man7.org/linux/man-pages/man7/capabilities.7.html) using `DOCKER_CONTAINER_CAP_DROP`
+* Use the [gVisor](https://gvisor.dev/) runtime
+
+
 ## Installation instructions
 See [docs/install](docs/install)
 
