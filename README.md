@@ -1,7 +1,7 @@
 # docker-run
 
 ## Overview
-docker-run provides a http api for running code inside transient docker containers.
+docker-run provides a http api for running untrusted code inside transient docker containers.
 For every run request a new container is started and deleted.
 The payload is passed to the container by attaching to it and writing it to stdin. The result is read from stdout.
 The communication with the docker daemon happens via it's api over the unix socket.
@@ -51,6 +51,7 @@ Docker containers are not as secure as a vm and there has been weaknesses in the
 where people have been able to escape a container in specific scenarios.
 The recommended setup is to store any database / user data / secrets on a separate machine then the one that runs docker + docker-run,
 so that if anyone is able to escape the container it will limit what they get access to.
+That said, glot.io has been running untrusted  code in docker containers since 2015 without any issues.
 
 Depending on your use-case you should also consider to:
 * Disable network access using `DOCKER_CONTAINER_NETWORK_DISABLED`
