@@ -87,3 +87,10 @@ See [docs/install](docs/install)
 | DOCKER_CONTAINER_CAP_DROP              | &lt;space separated list&gt;  | List of capabilies to drop                                                   |
 | RUN_MAX_EXECUTION_TIME                 | &lt;seconds&gt;               | Maximum number of seconds a container is allowed to run                      |
 | RUN_MAX_OUTPUT_SIZE                    | &lt;bytes&gt;                 | Maximum number of bytes allowed from the output of a run                     |
+
+
+#### Optional
+
+| Variable name                          | Type                          | Description                                                                  |
+|:---------------------------------------|:------------------------------|:-----------------------------------------------------------------------------|
+| DEBUG_KEEP_CONTAINER                   | &lt;bool&gt;                  | Don't remove the container after run is completed (for debugging)            |
