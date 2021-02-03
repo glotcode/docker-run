@@ -65,7 +65,7 @@ checksum = "7477065d45a8fe57167bf3cf8bcd3729b54cfcb81cca49bda2d038ea89ae82ca"
 
 [[package]]
 name = "docker-run"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "ascii",
  "env_logger",
