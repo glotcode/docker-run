@@ -1,6 +1,7 @@
 use crate::docker_run::unix_stream;
 use crate::docker_run::run;
 use crate::docker_run::api;
+use crate::docker_run::debug;
 
 #[derive(Clone, Debug)]
 pub struct Config {
@@ -9,6 +10,7 @@ pub struct Config {
     pub unix_socket: unix_stream::Config,
     pub container: run::ContainerConfig,
     pub run: run::Limits,
+    pub debug: debug::Config,
 }
 
 

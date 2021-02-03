@@ -8,6 +8,7 @@ use std::net;
 
 use crate::docker_run::docker;
 use crate::docker_run::unix_stream;
+use crate::docker_run::debug;
 
 
 #[derive(Debug)]
@@ -26,7 +27,7 @@ pub struct Limits {
 
 
 
-pub fn run<T: Serialize>(stream_config: unix_stream::Config, run_request: RunRequest<T>) -> Result<Map<String, Value>, Error> {
+pub fn run<T: Serialize>(stream_config: unix_stream::Config, run_request: RunRequest<T>, debug: debug::Config) -> Result<Map<String, Value>, Error> {
     let container_response = unix_stream::with_stream(&stream_config, Error::UnixStream, |stream| {
         docker::create_container(stream, &run_request.container_config)
             .map_err(Error::CreateContainer)
@@ -36,17 +37,19 @@ pub fn run<T: Serialize>(stream_config: unix_stream::Config, run_request: RunReq
 
     let result = run_with_container(&stream_config, run_request, &container_id);
 
-    let _ = unix_stream::with_stream(&stream_config, Error::UnixStream, |stream| {
-        match docker::remove_container(stream, &container_id) {
-            Ok(_) => {}
+    if !debug.keep_container {
+        let _ = unix_stream::with_stream(&stream_config, Error::UnixStream, |stream| {
+            match docker::remove_container(stream, &container_id) {
+                Ok(_) => {}
 
-            Err(err) => {
-                log::error!("Failed to remove container: {}", err);
+                Err(err) => {
+                    log::error!("Failed to remove container: {}", err);
+                }
             }
-        }
 
-        Ok(())
-    });
+            Ok(())
+        });
+    }
 
     result
 }

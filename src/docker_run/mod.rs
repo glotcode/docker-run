@@ -5,3 +5,4 @@ pub mod config;
 pub mod environment;
 pub mod api;
 pub mod unix_stream;
+pub mod debug;

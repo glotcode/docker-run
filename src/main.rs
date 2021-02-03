@@ -13,6 +13,7 @@ use docker_run::environment;
 use docker_run::unix_stream;
 use docker_run::run;
 use docker_run::api;
+use docker_run::debug;
 
 
 fn main() {
@@ -148,6 +149,7 @@ fn build_config(env: &environment::Environment) -> Result<config::Config, enviro
     let unix_socket = build_unix_socket_config(env)?;
     let container = build_container_config(env)?;
     let run = build_run_config(env)?;
+    let debug = build_debug_config(env)?;
 
     Ok(config::Config{
         server,
@@ -155,6 +157,7 @@ fn build_config(env: &environment::Environment) -> Result<config::Config, enviro
         unix_socket,
         container,
         run,
+        debug,
     })
 }
 
@@ -223,5 +226,13 @@ fn build_run_config(env: &environment::Environment) -> Result<run::Limits, envir
     Ok(run::Limits{
         max_execution_time: Duration::from_secs(max_execution_time),
         max_output_size,
+    })
+}
+
+fn build_debug_config(env: &environment::Environment) -> Result<debug::Config, environment::Error> {
+    let keep_container = environment::lookup(env, "DEBUG_KEEP_CONTAINER").unwrap_or(false);
+
+    Ok(debug::Config{
+        keep_container,
     })
 }

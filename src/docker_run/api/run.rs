@@ -22,7 +22,7 @@ pub fn handle(config: &config::Config, request: &mut tiny_http::Request) -> Resu
         container_config,
         payload: req_body.payload,
         limits: config.run.clone(),
-    }).map_err(handle_error)?;
+    }, config.debug.clone()).map_err(handle_error)?;
 
     api::prepare_json_response(&run_result, api::JsonFormat::Minimal)
 }
