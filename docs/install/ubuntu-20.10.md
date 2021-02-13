@@ -28,7 +28,7 @@ usermod -aG docker glot
 ```bash
 mkdir /home/glot/bin
 cd /home/glot/bin
-wget https://github.com/glotcode/docker-run/releases/download/v1.1.0/docker-run_linux-x64.tar.gz
+wget https://github.com/glotcode/docker-run/releases/download/v1.2.0/docker-run_linux-x64.tar.gz
 tar -zxf docker-run_linux-x64.tar.gz
 rm docker-run_linux-x64.tar.gz
 chown -R glot:glot /home/glot/bin
