@@ -65,6 +65,31 @@ Depending on your use-case you should also consider to:
 - [gVisor](docs/install/ubuntu-20.10-gvisor.md)
 
 
+## FAQ
+
+**Q:** How is fork bombs handled?
+
+**A:** The number of processes a container can create can be set with the `DOCKER_CONTAINER_ULIMIT_NPROC_HARD` variable.
+
+##
+
+**Q:** How is infinite loops handled?
+
+**A:** The container will be killed when the `RUN_MAX_EXECUTION_TIME` value is reached.
+
+##
+
+**Q:** How is large output handled?
+
+**A:** Docker-run will stop reading the output from the container when it has read the number of bytes defined in `RUN_MAX_OUTPUT_SIZE`.
+
+##
+
+**Q:** How is high memory usage handled?
+
+**A:** The max memory for a container can be set with the `DOCKER_CONTAINER_MEMORY` variable.
+
+
 ## Environment variables
 
 #### Required
