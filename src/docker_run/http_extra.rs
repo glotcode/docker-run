@@ -2,6 +2,7 @@ use http::{Request, Response};
 use http::header;
 use http::status;
 use http::header::CONTENT_LENGTH;
+use http::header::TRANSFER_ENCODING;
 use http::response;
 use std::io::{Read, Write};
 use serde::Deserialize;
@@ -29,6 +30,7 @@ pub enum Error {
     ReadResponse(io::Error),
     ParseResponseHead(ParseError),
     BadStatus(status::StatusCode, Vec<u8>),
+    ReadChunkedBody(ReadChunkError),
     ReadBody(io::Error),
     DeserializeBody(serde_json::Error),
 }
@@ -46,6 +48,10 @@ impl fmt::Display for Error {
 
             Error::ParseResponseHead(err) => {
                 write!(f, "Failed parse response head: {}", err)
+            }
+
+            Error::ReadChunkedBody(err) => {
+                write!(f, "Failed read to chunked response body: {}", err)
             }
 
             Error::ReadBody(err) => {
@@ -86,10 +92,19 @@ pub fn send_request<Stream, ResponseBody>(mut stream: Stream, req: Request<Body>
     let response_parts = parse_response_head(response_head)
         .map_err(Error::ParseResponseHead)?;
 
-    let content_length = get_content_length(&response_parts.headers);
+    // Read response body
+    let raw_body = match get_transfer_encoding(&response_parts.headers) {
+        TransferEncoding::Chunked() => {
+            read_chunked_response_body(reader)
+                .map_err(Error::ReadChunkedBody)?
+        }
 
-    let raw_body = read_response_body(content_length, reader)
-        .map_err(Error::ReadBody)?;
+        _ => {
+            let content_length = get_content_length(&response_parts.headers);
+            read_response_body(content_length, reader)
+                .map_err(Error::ReadBody)?
+        }
+    };
 
     err_if_false(response_parts.status.is_success(), Error::BadStatus(
             response_parts.status,
@@ -101,6 +116,83 @@ pub fn send_request<Stream, ResponseBody>(mut stream: Stream, req: Request<Body>
 
     Ok(Response::from_parts(response_parts, body))
 }
+
+fn read_response_body<R: BufRead>(content_length: usize, mut reader: R) -> Result<Vec<u8>, io::Error> {
+    if content_length > 0 {
+        let mut buffer = vec![0u8; content_length];
+        reader.read_exact(&mut buffer)?;
+        Ok(buffer)
+    } else {
+        Ok(vec![])
+    }
+}
+
+
+#[derive(Debug)]
+pub enum ReadChunkError {
+    ReadChunkLength(io::Error),
+    ParseChunkLength(std::num::ParseIntError),
+    ReadChunk(io::Error),
+    SkipLineFeed(io::Error),
+}
+
+impl fmt::Display for ReadChunkError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ReadChunkError::ReadChunkLength(err) => {
+                write!(f, "Failed to read chunk length: {}", err)
+            }
+
+            ReadChunkError::ParseChunkLength(err) => {
+                write!(f, "Failed parse chunk length: {}", err)
+            }
+
+            ReadChunkError::ReadChunk(err) => {
+                write!(f, "Failed read chunk: {}", err)
+            }
+
+            ReadChunkError::SkipLineFeed(err) => {
+                write!(f, "Failed read line feed at end of chunk: {}", err)
+            }
+        }
+    }
+}
+
+fn read_chunked_response_body<R: BufRead>(mut reader: R) -> Result<Vec<u8>, ReadChunkError> {
+    let mut body = vec![];
+
+    loop {
+        let mut chunk = read_response_chunk(&mut reader)?;
+
+        if chunk.is_empty() {
+            break
+        }
+
+        body.append(&mut chunk)
+    }
+
+    Ok(body)
+}
+
+fn read_response_chunk<R: BufRead>(mut reader: R) -> Result<Vec<u8>, ReadChunkError> {
+    let mut buffer = String::new();
+
+    reader.read_line(&mut buffer)
+        .map_err(ReadChunkError::ReadChunkLength)?;
+
+    let chunk_length = usize::from_str_radix(buffer.trim_end(), 16)
+        .map_err(ReadChunkError::ParseChunkLength)?;
+
+    let chunk = read_response_body(chunk_length, &mut reader)
+        .map_err(ReadChunkError::ReadChunk)?;
+
+    let mut void = String::new();
+    reader.read_line(&mut void)
+        .map_err(ReadChunkError::SkipLineFeed)?;
+
+    Ok(chunk)
+}
+
 
 fn get_content_length(headers: &header::HeaderMap<header::HeaderValue>) -> usize {
     headers.get(CONTENT_LENGTH)
@@ -114,16 +206,38 @@ fn get_content_length(headers: &header::HeaderMap<header::HeaderValue>) -> usize
         .unwrap_or(0)
 }
 
-fn read_response_body<R: BufRead>(content_length: usize, mut reader: R) -> Result<Vec<u8>, io::Error>{
-    if content_length > 0 {
-        let mut buffer = vec![0u8; content_length];
-        reader.read_exact(&mut buffer)?;
-        Ok(buffer)
-    } else {
-        Ok(vec![])
+enum TransferEncoding {
+    NoEncoding(),
+    Chunked(),
+    Other(String),
+}
+
+impl TransferEncoding {
+    pub fn from_str(value: &str) -> TransferEncoding {
+        match value {
+            "chunked" => {
+                TransferEncoding::Chunked()
+            }
+
+            "" => {
+                TransferEncoding::NoEncoding()
+            }
+
+            other => {
+                TransferEncoding::Other(other.to_string())
+            }
+        }
     }
 }
 
+
+fn get_transfer_encoding(headers: &header::HeaderMap<header::HeaderValue>) -> TransferEncoding {
+    let value = headers.get(TRANSFER_ENCODING)
+        .map(|value| value.to_str().unwrap_or("").to_string())
+        .unwrap_or_else(|| "".to_string());
+
+    TransferEncoding::from_str(&value)
+}
 
 #[derive(Debug)]
 pub struct EmptyResponse {}
