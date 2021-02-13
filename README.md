@@ -60,7 +60,9 @@ Depending on your use-case you should also consider to:
 
 
 ## Installation instructions
-See [docs/install](docs/install)
+- [Run docker-run in a docker container](docs/install/docker-ubuntu-20.10.md)
+- [Run docker-run with systemd](docs/install/ubuntu-20.10.md)
+- [gVisor](docs/install/ubuntu-20.10-gvisor.md)
 
 
 ## Environment variables
