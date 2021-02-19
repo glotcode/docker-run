@@ -58,6 +58,11 @@ impl Server {
                             break;
                         }
 
+                        Err(tiny_http::AcceptError::ClientConnection(err)) => {
+                            log::warn!("Encountered error with client connection: {:?}", err);
+                            continue;
+                        }
+
                         Err(tiny_http::AcceptError::ShuttingDown()) => {
                             log::info!("Thread {} shutting down", n);
                             break;
