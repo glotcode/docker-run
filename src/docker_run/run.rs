@@ -5,6 +5,7 @@ use serde::Serialize;
 use serde_json::{Value, Map};
 use std::os::unix::net::UnixStream;
 use std::net;
+use std::collections::HashMap;
 
 use crate::docker_run::docker;
 use crate::docker_run::unix_stream;
@@ -112,10 +113,32 @@ pub struct ContainerConfig {
     pub ulimit_nproc_hard: i64,
     pub cap_add: Vec<String>,
     pub cap_drop: Vec<String>,
+    pub readonly_rootfs: bool,
+    pub tmp_dir: Option<Tmpfs>,
+    pub work_dir: Option<Tmpfs>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Tmpfs {
+    pub path: String,
+    pub options: String,
+}
+
+
+impl ContainerConfig {
+    pub fn tmpfs_mounts(&self) -> HashMap<String, String> {
+        [&self.tmp_dir, &self.work_dir]
+            .iter()
+            .filter_map(|tmpfs| tmpfs.as_ref())
+            .map(|tmpfs| (tmpfs.path.clone(), tmpfs.options.clone()))
+            .collect()
+    }
 }
 
 
 pub fn prepare_container_config(image_name: String, config: ContainerConfig) -> docker::ContainerConfig {
+    let tmpfs = config.tmpfs_mounts();
+
     docker::ContainerConfig{
         hostname: config.hostname,
         user: config.user,
@@ -144,6 +167,8 @@ pub fn prepare_container_config(image_name: String, config: ContainerConfig) -> 
                     hard: config.ulimit_nproc_hard,
                 },
             ],
+            readonly_rootfs: config.readonly_rootfs,
+            tmpfs,
         },
     }
 }

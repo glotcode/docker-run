@@ -204,6 +204,11 @@ fn build_container_config(env: &environment::Environment) -> Result<run::Contain
     let ulimit_nproc_hard = environment::lookup(env, "DOCKER_CONTAINER_ULIMIT_NPROC_HARD")?;
     let cap_add = environment::lookup(env, "DOCKER_CONTAINER_CAP_ADD").unwrap_or_default();
     let cap_drop = environment::lookup(env, "DOCKER_CONTAINER_CAP_DROP").unwrap_or_default();
+    let readonly_rootfs = environment::lookup(env, "DOCKER_CONTAINER_READONLY_ROOTFS").unwrap_or(false);
+    let tmp_dir_path: Option<String> = environment::lookup_optional(env, "DOCKER_CONTAINER_TMP_DIR_PATH")?;
+    let tmp_dir_options = environment::lookup(env, "DOCKER_CONTAINER_TMP_DIR_OPTIONS").unwrap_or_else(|_| "rw,noexec,nosuid,size=65536k".to_string());
+    let work_dir_path: Option<String> = environment::lookup_optional(env, "DOCKER_CONTAINER_WORK_DIR_PATH")?;
+    let work_dir_options = environment::lookup(env, "DOCKER_CONTAINER_WORK_DIR_OPTIONS").unwrap_or_else(|_| "rw,exec,nosuid,size=65536k".to_string());
 
     Ok(run::ContainerConfig{
         hostname,
@@ -216,6 +221,19 @@ fn build_container_config(env: &environment::Environment) -> Result<run::Contain
         ulimit_nproc_hard,
         cap_add: environment::space_separated_string(cap_add),
         cap_drop: environment::space_separated_string(cap_drop),
+        readonly_rootfs,
+        tmp_dir: tmp_dir_path.map(|path| {
+            run::Tmpfs{
+                path,
+                options: tmp_dir_options,
+            }
+        }),
+        work_dir: work_dir_path.map(|path| {
+            run::Tmpfs{
+                path,
+                options: work_dir_options,
+            }
+        }),
     })
 }
 

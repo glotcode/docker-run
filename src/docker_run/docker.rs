@@ -4,6 +4,7 @@ use std::io::{Read, Write};
 use std::io;
 use std::fmt;
 use std::convert::TryInto;
+use std::collections::HashMap;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
@@ -29,6 +30,8 @@ pub struct HostConfig {
     pub cap_add: Vec<String>,
     pub cap_drop: Vec<String>,
     pub ulimits: Vec<Ulimit>,
+    pub readonly_rootfs: bool,
+    pub tmpfs: HashMap<String, String>,
 }
 
 #[derive(Debug, Serialize)]

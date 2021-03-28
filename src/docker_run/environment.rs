@@ -28,6 +28,28 @@ pub fn lookup<T>(environment: &Environment, key: &'static str) -> Result<T, Erro
 }
 
 
+pub fn lookup_optional<T>(environment: &Environment, key: &'static str) -> Result<Option<T>, Error>
+    where T: FromStr,
+          T::Err: fmt::Display {
+
+    match environment.get(key) {
+        None => {
+            Ok(None)
+        }
+
+        Some(string_value) => {
+            string_value
+                .parse::<T>()
+                .map(Some)
+                .map_err(|err| Error::Parse{
+                    key,
+                    details: err.to_string(),
+                })
+        }
+    }
+}
+
+
 #[derive(Debug)]
 pub enum Error {
     KeyNotFound(&'static str),
