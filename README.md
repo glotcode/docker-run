@@ -120,4 +120,9 @@ Depending on your use-case you should also consider to:
 
 | Variable name                          | Type                          | Description                                                                  |
 |:---------------------------------------|:------------------------------|:-----------------------------------------------------------------------------|
+| DOCKER_CONTAINER_READONLY_ROOTFS       | &lt;bool&gt;                  | Mount root as read-only (recommended)                                        |
+| DOCKER_CONTAINER_TMP_DIR_PATH          | &lt;filepath&gt;              | Will add a writeable tmpfs mount at the given path                           |
+| DOCKER_CONTAINER_TMP_DIR_OPTIONS       | &lt;string&gt;                | Mount options for the tmp dir (default: rw,noexec,nosuid,size=65536k)        |
+| DOCKER_CONTAINER_WORK_DIR_PATH         | &lt;filepath&gt;              | Will add a writeable tmpfs mount at the given path                           |
+| DOCKER_CONTAINER_WORK_DIR_OPTIONS      | &lt;string&gt;                | Mount options for the work dir (default: rw,exec,nosuid,size=65536k)         |
 | DEBUG_KEEP_CONTAINER                   | &lt;bool&gt;                  | Don't remove the container after run is completed (for debugging)            |
