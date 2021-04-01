@@ -3,7 +3,7 @@ let
     builtins.fetchGit {
       url = "https://github.com/NixOS/nixpkgs";
       ref = "refs/heads/nixos-unstable";
-      rev = "24eb3f87fc610f18de7076aee7c5a84ac5591e3e";
+      rev = "ad47284f8b01f587e24a4f14e0f93126d8ebecda";
     };
 
   pkgs =
@@ -36,6 +36,11 @@ pkgs.dockerTools.buildImage {
       "DOCKER_CONTAINER_ULIMIT_NPROC_SOFT=90"
       "DOCKER_CONTAINER_ULIMIT_NPROC_HARD=100"
       "DOCKER_CONTAINER_CAP_DROP=MKNOD NET_RAW NET_BIND_SERVICE"
+      "DOCKER_CONTAINER_READONLY_ROOTFS=true"
+      "DOCKER_CONTAINER_TMP_DIR_PATH=/tmp"
+      "DOCKER_CONTAINER_TMP_DIR_OPTIONS=rw,noexec,nosuid,size=65536k"
+      "DOCKER_CONTAINER_WORK_DIR_PATH=/home/glot"
+      "DOCKER_CONTAINER_WORK_DIR_OPTIONS=rw,exec,nosuid,size=65536k"
       "RUN_MAX_EXECUTION_TIME=15"
       "RUN_MAX_OUTPUT_SIZE=100000"
       "RUST_LOG=debug"
