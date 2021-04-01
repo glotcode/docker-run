@@ -208,7 +208,7 @@ fn build_container_config(env: &environment::Environment) -> Result<run::Contain
     let tmp_dir_path: Option<String> = environment::lookup_optional(env, "DOCKER_CONTAINER_TMP_DIR_PATH")?;
     let tmp_dir_options = environment::lookup(env, "DOCKER_CONTAINER_TMP_DIR_OPTIONS").unwrap_or_else(|_| "rw,noexec,nosuid,size=65536k".to_string());
     let work_dir_path: Option<String> = environment::lookup_optional(env, "DOCKER_CONTAINER_WORK_DIR_PATH")?;
-    let work_dir_options = environment::lookup(env, "DOCKER_CONTAINER_WORK_DIR_OPTIONS").unwrap_or_else(|_| "rw,exec,nosuid,size=65536k".to_string());
+    let work_dir_options = environment::lookup(env, "DOCKER_CONTAINER_WORK_DIR_OPTIONS").unwrap_or_else(|_| "rw,exec,nosuid,size=131072k".to_string());
 
     Ok(run::ContainerConfig{
         hostname,
