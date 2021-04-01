@@ -489,9 +489,9 @@ rec {
       };
       "libc" = rec {
         crateName = "libc";
-        version = "0.2.86";
+        version = "0.2.92";
         edition = "2015";
-        sha256 = "074b38mq1rx3dgg7sf952d4ccywq450zymk7gzn5q9z39f92sa5p";
+        sha256 = "0537k32dhh6248ajrhmibjbqf49crm8235hg9hs9pfxgkw35bn2n";
         authors = [
           "The Rust Project Developers"
         ];
@@ -595,20 +595,6 @@ rec {
           "default" = [ "std" ];
         };
       };
-      "once_cell" = rec {
-        crateName = "once_cell";
-        version = "1.5.2";
-        edition = "2018";
-        sha256 = "183zs1dbmsv24mkafjypf9qwjrx46an58vb004a162l113sl3g8k";
-        authors = [
-          "Aleksey Kladov <aleksey.kladov@gmail.com>"
-        ];
-        features = {
-          "default" = [ "std" ];
-          "std" = [ "alloc" ];
-        };
-        resolvedDefaultFeatures = [ "alloc" "default" "std" ];
-      };
       "percent-encoding" = rec {
         crateName = "percent-encoding";
         version = "2.1.0";
@@ -622,9 +608,9 @@ rec {
       };
       "proc-macro2" = rec {
         crateName = "proc-macro2";
-        version = "1.0.24";
+        version = "1.0.26";
         edition = "2018";
-        sha256 = "0wcabxzrddcjmryndw8fpyxcq6rw63m701vx86xxf03y3bp081qy";
+        sha256 = "1v4w5jchgsssr727iyv986r8jaw6z80bzlhqgrbp78nw2lr02lm1";
         authors = [
           "Alex Crichton <alex@alexcrichton.com>"
           "David Tolnay <dtolnay@gmail.com>"
@@ -674,9 +660,9 @@ rec {
       };
       "regex" = rec {
         crateName = "regex";
-        version = "1.4.3";
+        version = "1.4.5";
         edition = "2015";
-        sha256 = "12llbg82js69mdl50lav4yn1iqlx71ckb18dww467q99w4wi49fr";
+        sha256 = "06awg9164h7w4pmbchmj9pkrqn78sa8y252ijqk1pfmyvpn5cw4m";
         authors = [
           "The Rust Project Developers"
         ];
@@ -696,16 +682,10 @@ rec {
             packageId = "regex-syntax";
             usesDefaultFeatures = false;
           }
-          {
-            name = "thread_local";
-            packageId = "thread_local";
-            optional = true;
-          }
         ];
         features = {
           "default" = [ "std" "perf" "unicode" "regex-syntax/default" ];
           "perf" = [ "perf-cache" "perf-dfa" "perf-inline" "perf-literal" ];
-          "perf-cache" = [ "thread_local" ];
           "perf-literal" = [ "aho-corasick" "memchr" ];
           "unicode" = [ "unicode-age" "unicode-bool" "unicode-case" "unicode-gencat" "unicode-perl" "unicode-script" "unicode-segment" "regex-syntax/unicode" ];
           "unicode-age" = [ "regex-syntax/unicode-age" ];
@@ -718,13 +698,13 @@ rec {
           "unstable" = [ "pattern" ];
           "use_std" = [ "std" ];
         };
-        resolvedDefaultFeatures = [ "aho-corasick" "default" "memchr" "perf" "perf-cache" "perf-dfa" "perf-inline" "perf-literal" "std" "thread_local" "unicode" "unicode-age" "unicode-bool" "unicode-case" "unicode-gencat" "unicode-perl" "unicode-script" "unicode-segment" ];
+        resolvedDefaultFeatures = [ "aho-corasick" "default" "memchr" "perf" "perf-cache" "perf-dfa" "perf-inline" "perf-literal" "std" "unicode" "unicode-age" "unicode-bool" "unicode-case" "unicode-gencat" "unicode-perl" "unicode-script" "unicode-segment" ];
       };
       "regex-syntax" = rec {
         crateName = "regex-syntax";
-        version = "0.6.22";
+        version = "0.6.23";
         edition = "2015";
-        sha256 = "10b56ylil35jkb4nwqxm8hbyx3zq7fws0wpydjln165s8xql3sxm";
+        sha256 = "0j25v3pbfaprpr1k7h8smw5xrs6j5kzznddq50nzcq1f2n4z1m94";
         authors = [
           "The Rust Project Developers"
         ];
@@ -747,9 +727,9 @@ rec {
       };
       "serde" = rec {
         crateName = "serde";
-        version = "1.0.123";
+        version = "1.0.125";
         edition = "2015";
-        sha256 = "1bk9733mgiv5sg8yb19y8mc85fb2aaqp1k02v10alavj688idmcj";
+        sha256 = "0w8i0f4wsq4zd9vz1k6lq00066rjrgzlxkm25h8sfpss387cb3am";
         authors = [
           "Erick Tryzelaar <erick.tryzelaar@gmail.com>"
           "David Tolnay <dtolnay@gmail.com>"
@@ -775,9 +755,9 @@ rec {
       };
       "serde_derive" = rec {
         crateName = "serde_derive";
-        version = "1.0.123";
+        version = "1.0.125";
         edition = "2015";
-        sha256 = "0ccg4m7ww6mfs5vjdbdifri2kf1wyd4difjnqnraph2gssaw54ck";
+        sha256 = "0vfhndim4sa1i1x38dyvrxyq5v8zxjs0av05ldfkn82qpfibg4xh";
         procMacro = true;
         authors = [
           "Erick Tryzelaar <erick.tryzelaar@gmail.com>"
@@ -803,9 +783,9 @@ rec {
       };
       "serde_json" = rec {
         crateName = "serde_json";
-        version = "1.0.62";
+        version = "1.0.64";
         edition = "2018";
-        sha256 = "11hlwc4glh244sk6ncnvj3n01pi538iv2qygyxyfllj5g59n277a";
+        sha256 = "0y9gk3yikncrc0zajmwc0pidr7zfwafawb4gidf6mqyskzf9g7kr";
         authors = [
           "Erick Tryzelaar <erick.tryzelaar@gmail.com>"
           "David Tolnay <dtolnay@gmail.com>"
@@ -877,9 +857,9 @@ rec {
       };
       "syn" = rec {
         crateName = "syn";
-        version = "1.0.60";
+        version = "1.0.68";
         edition = "2018";
-        sha256 = "1080gw6mlja7yl26crya3k403wjdp7v3wx9mxcmpcnlar9z5j067";
+        sha256 = "11zxx242fk12l3hxfhfvas96p2xmbbpxc5j7mkpgi8laxp9mvq9w";
         authors = [
           "David Tolnay <dtolnay@gmail.com>"
         ];
@@ -921,22 +901,6 @@ rec {
             name = "winapi-util";
             packageId = "winapi-util";
             target = { target, features }: target."windows";
-          }
-        ];
-        
-      };
-      "thread_local" = rec {
-        crateName = "thread_local";
-        version = "1.1.3";
-        edition = "2018";
-        sha256 = "1gccp3grndpi6dyhzylz4hkqnkzc1xyri98n0xwwhnn90i7d4640";
-        authors = [
-          "Amanieu d'Antras <amanieu@gmail.com>"
-        ];
-        dependencies = [
-          {
-            name = "once_cell";
-            packageId = "once_cell";
           }
         ];
         
