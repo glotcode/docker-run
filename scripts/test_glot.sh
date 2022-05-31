@@ -12,6 +12,7 @@ run() {
 
     RUN_RESULT=$(curl \
         -X POST \
+        -H "Content-type: application/json" \
         -H "X-Access-Token: $ACCESS_TOKEN" \
         --silent \
         --data "$JSON" \
@@ -19,7 +20,6 @@ run() {
 
     echo "${DOCKER_IMAGE} [${PAYLOAD_PATH}]: ${RUN_RESULT}"
 }
-
 
 run "glot/assembly:latest" "payload/assembly.json"
 run "glot/ats:latest" "payload/ats.json"
