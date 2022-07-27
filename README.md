@@ -61,7 +61,7 @@ Depending on your use-case you should also consider to:
 
 ## Installation instructions
 - [Run docker-run with systemd](docs/install/ubuntu-20.10.md) (recommended)
-- [Run docker-run in a docker container](docs/install/docker-ubuntu-20.10.md)
+- [Run docker-run in a docker container](docs/install/docker-ubuntu-20.10.md) (some people run into issues while running docker-run in a container, see open issues)
 - [gVisor](docs/install/ubuntu-20.10-gvisor.md)
 
 
