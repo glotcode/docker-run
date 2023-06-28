@@ -1,0 +1,8 @@
+{
+    "language": "dart",
+    "files": [{
+      "name": "main.dart",
+      "content": "void main() {\n  print('Hello 🌎!');\n}"
+    }]
+  }
+  
