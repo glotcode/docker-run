@@ -2,15 +2,15 @@ let
   nixpkgs =
     builtins.fetchGit {
       url = "https://github.com/NixOS/nixpkgs";
-      ref = "refs/heads/nixos-unstable";
-      rev = "ad47284f8b01f587e24a4f14e0f93126d8ebecda";
+      ref = "refs/heads/release-23.05";
+      rev = "9117c4e9dc117a6cd0319cca40f2349ed333669d";
     };
 
   pkgs =
     import nixpkgs {};
 
   dockerRun =
-    import ./Cargo.nix { pkgs = pkgs; };
+    import ./default.nix { pkgs = pkgs; };
 in
 pkgs.dockerTools.buildImage {
   name = "glot/docker-run";
@@ -46,6 +46,6 @@ pkgs.dockerTools.buildImage {
       "RUST_LOG=debug"
     ];
 
-    Cmd = [ "${dockerRun.rootCrate.build}/bin/docker-run" ];
+    Cmd = [ "${dockerRun}/bin/docker-run" ];
   };
 }
