@@ -43,7 +43,6 @@ in
 
       serviceConfig =
         {
-          WorkingDirectory = "${cfg.environment.WORK_DIR}";
           ExecStart = "${dockerRun}/bin/docker-run";
           Restart = "always";
           User = "glot";
