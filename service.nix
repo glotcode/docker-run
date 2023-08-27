@@ -2,7 +2,7 @@
 
 let
   dockerRun =
-    import ./Cargo.nix { pkgs = pkgs; };
+    import ./default.nix { pkgs = pkgs; };
 
   cfg =
     config.services.dockerRun;
