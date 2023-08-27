@@ -30,9 +30,13 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    # Add glot group
+    users.groups.glot = {};
+
     # Service user
     users.extraUsers.glot = {
       isSystemUser = true;
+      group = "glot";
       extraGroups = ["docker"];
       description = "service user";
     };
