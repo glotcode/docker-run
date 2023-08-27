@@ -32,7 +32,8 @@ in
   config = lib.mkIf cfg.enable {
     # Service user
     users.extraUsers.glot = {
-      isNormalUser = true;
+      isSystemUser = true;
+      extraGroups = ["docker"];
       description = "service user";
     };
 
