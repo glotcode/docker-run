@@ -1,10 +1,9 @@
-use std::os::unix::net::UnixStream;
-use std::io;
-use std::time::Duration;
 use std::fmt;
+use std::io;
 use std::net::Shutdown;
+use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
-
+use std::time::Duration;
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -13,21 +12,27 @@ pub struct Config {
     pub write_timeout: Duration,
 }
 
-pub fn with_stream<F, T, E, ErrorTagger>(config: &Config, to_error: ErrorTagger, f: F) -> Result<T, E>
-    where
-        F: FnOnce(&mut UnixStream) -> Result<T, E>,
-        ErrorTagger: Copy,
-        ErrorTagger: FnOnce(Error) -> E {
-
+pub fn with_stream<F, T, E, ErrorTagger>(
+    config: &Config,
+    to_error: ErrorTagger,
+    f: F,
+) -> Result<T, E>
+where
+    F: FnOnce(&mut UnixStream) -> Result<T, E>,
+    ErrorTagger: Copy,
+    ErrorTagger: FnOnce(Error) -> E,
+{
     let mut stream = UnixStream::connect(&config.path)
         .map_err(Error::Connect)
         .map_err(to_error)?;
 
-    stream.set_read_timeout(Some(config.read_timeout))
+    stream
+        .set_read_timeout(Some(config.read_timeout))
         .map_err(Error::SetStreamTimeout)
         .map_err(to_error)?;
 
-    stream.set_write_timeout(Some(config.write_timeout))
+    stream
+        .set_write_timeout(Some(config.write_timeout))
         .map_err(Error::SetStreamTimeout)
         .map_err(to_error)?;
 
@@ -37,7 +42,6 @@ pub fn with_stream<F, T, E, ErrorTagger>(config: &Config, to_error: ErrorTagger,
 
     Ok(result)
 }
-
 
 #[derive(Debug)]
 pub enum Error {

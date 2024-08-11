@@ -1,16 +1,15 @@
-use std::time::Duration;
-use std::str;
-use std::fmt;
 use serde::Serialize;
-use serde_json::{Value, Map};
-use std::os::unix::net::UnixStream;
-use std::net;
+use serde_json::{Map, Value};
 use std::collections::HashMap;
+use std::fmt;
+use std::net;
+use std::os::unix::net::UnixStream;
+use std::str;
+use std::time::Duration;
 
+use crate::docker_run::debug;
 use crate::docker_run::docker;
 use crate::docker_run::unix_stream;
-use crate::docker_run::debug;
-
 
 #[derive(Debug)]
 pub struct RunRequest<Payload: Serialize> {
@@ -19,20 +18,22 @@ pub struct RunRequest<Payload: Serialize> {
     pub limits: Limits,
 }
 
-
 #[derive(Clone, Debug)]
 pub struct Limits {
     pub max_execution_time: Duration,
     pub max_output_size: usize,
 }
 
-
-
-pub fn run<T: Serialize>(stream_config: unix_stream::Config, run_request: RunRequest<T>, debug: debug::Config) -> Result<Map<String, Value>, Error> {
-    let container_response = unix_stream::with_stream(&stream_config, Error::UnixStream, |stream| {
-        docker::create_container(stream, &run_request.container_config)
-            .map_err(Error::CreateContainer)
-    })?;
+pub fn run<T: Serialize>(
+    stream_config: unix_stream::Config,
+    run_request: RunRequest<T>,
+    debug: debug::Config,
+) -> Result<Map<String, Value>, Error> {
+    let container_response =
+        unix_stream::with_stream(&stream_config, Error::UnixStream, |stream| {
+            docker::create_container(stream, &run_request.container_config)
+                .map_err(Error::CreateContainer)
+        })?;
 
     let container_id = &container_response.body().id;
 
@@ -55,14 +56,16 @@ pub fn run<T: Serialize>(stream_config: unix_stream::Config, run_request: RunReq
     result
 }
 
-pub fn run_with_container<T: Serialize>(stream_config: &unix_stream::Config, run_request: RunRequest<T>, container_id: &str) -> Result<Map<String, Value>, Error> {
-
+pub fn run_with_container<T: Serialize>(
+    stream_config: &unix_stream::Config,
+    run_request: RunRequest<T>,
+    container_id: &str,
+) -> Result<Map<String, Value>, Error> {
     unix_stream::with_stream(&stream_config, Error::UnixStream, |stream| {
-        docker::start_container(stream, &container_id)
-            .map_err(Error::StartContainer)
+        docker::start_container(stream, &container_id).map_err(Error::StartContainer)
     })?;
 
-    let run_config = unix_stream::Config{
+    let run_config = unix_stream::Config {
         read_timeout: run_request.limits.max_execution_time,
         ..stream_config.clone()
     };
@@ -72,17 +75,18 @@ pub fn run_with_container<T: Serialize>(stream_config: &unix_stream::Config, run
     })
 }
 
-pub fn run_code<Payload>(mut stream: &UnixStream, container_id: &str, run_request: &RunRequest<Payload>) -> Result<Map<String, Value>, Error>
-    where
-        Payload: Serialize,
-    {
-
-    docker::attach_container(&mut stream, container_id)
-        .map_err(Error::AttachContainer)?;
+pub fn run_code<Payload>(
+    mut stream: &UnixStream,
+    container_id: &str,
+    run_request: &RunRequest<Payload>,
+) -> Result<Map<String, Value>, Error>
+where
+    Payload: Serialize,
+{
+    docker::attach_container(&mut stream, container_id).map_err(Error::AttachContainer)?;
 
     // Send payload
-    serde_json::to_writer(&mut stream, &run_request.payload)
-        .map_err(Error::SerializePayload)?;
+    serde_json::to_writer(&mut stream, &run_request.payload).map_err(Error::SerializePayload)?;
 
     // Shutdown write stream which will trigger an EOF on the reader
     let _ = stream.shutdown(net::Shutdown::Write);
@@ -92,14 +96,15 @@ pub fn run_code<Payload>(mut stream: &UnixStream, container_id: &str, run_reques
         .map_err(Error::ReadStream)?;
 
     // Return error if we recieved stdin or stderr data from the stream
-    err_if_false(output.stdin.is_empty(), Error::StreamStdinUnexpected(output.stdin))?;
+    err_if_false(
+        output.stdin.is_empty(),
+        Error::StreamStdinUnexpected(output.stdin),
+    )?;
     err_if_false(output.stderr.is_empty(), Error::StreamStderr(output.stderr))?;
 
     // Decode stdout data to dict
-    decode_dict(&output.stdout)
-        .map_err(Error::StreamStdoutDecode)
+    decode_dict(&output.stdout).map_err(Error::StreamStdoutDecode)
 }
-
 
 #[derive(Debug, Clone)]
 pub struct ContainerConfig {
@@ -124,7 +129,6 @@ pub struct Tmpfs {
     pub options: String,
 }
 
-
 impl ContainerConfig {
     pub fn tmpfs_mounts(&self) -> HashMap<String, String> {
         [&self.tmp_dir, &self.work_dir]
@@ -135,11 +139,13 @@ impl ContainerConfig {
     }
 }
 
-
-pub fn prepare_container_config(image_name: String, config: ContainerConfig) -> docker::ContainerConfig {
+pub fn prepare_container_config(
+    image_name: String,
+    config: ContainerConfig,
+) -> docker::ContainerConfig {
     let tmpfs = config.tmpfs_mounts();
 
-    docker::ContainerConfig{
+    docker::ContainerConfig {
         hostname: config.hostname,
         user: config.user,
         attach_stdin: true,
@@ -150,18 +156,18 @@ pub fn prepare_container_config(image_name: String, config: ContainerConfig) -> 
         stdin_once: true,
         image: image_name,
         network_disabled: config.network_disabled,
-        host_config: docker::HostConfig{
+        host_config: docker::HostConfig {
             memory: config.memory,
             privileged: false,
             cap_add: config.cap_add,
             cap_drop: config.cap_drop,
             ulimits: vec![
-                docker::Ulimit{
+                docker::Ulimit {
                     name: "nofile".to_string(),
                     soft: config.ulimit_nofile_soft,
                     hard: config.ulimit_nofile_hard,
                 },
-                docker::Ulimit{
+                docker::Ulimit {
                     name: "nproc".to_string(),
                     soft: config.ulimit_nproc_soft,
                     hard: config.ulimit_nproc_hard,
@@ -172,7 +178,6 @@ pub fn prepare_container_config(image_name: String, config: ContainerConfig) -> 
         },
     }
 }
-
 
 #[derive(Debug)]
 pub enum Error {
@@ -215,31 +220,31 @@ impl fmt::Display for Error {
             }
 
             Error::StreamStdinUnexpected(bytes) => {
-                let msg = String::from_utf8(bytes.to_vec())
-                    .unwrap_or(format!("{:?}", bytes));
+                let msg = String::from_utf8(bytes.to_vec()).unwrap_or(format!("{:?}", bytes));
 
                 write!(f, "Code runner returned unexpected stdin data: {}", msg)
             }
 
             Error::StreamStderr(bytes) => {
-                let msg = String::from_utf8(bytes.to_vec())
-                    .unwrap_or(format!("{:?}", bytes));
+                let msg = String::from_utf8(bytes.to_vec()).unwrap_or(format!("{:?}", bytes));
 
                 write!(f, "Code runner failed with the following message: {}", msg)
             }
 
             Error::StreamStdoutDecode(err) => {
-                write!(f, "Failed to decode json returned from code runner: {}", err)
+                write!(
+                    f,
+                    "Failed to decode json returned from code runner: {}",
+                    err
+                )
             }
         }
     }
 }
 
-
 fn decode_dict(data: &[u8]) -> Result<Map<String, Value>, serde_json::Error> {
     serde_json::from_slice(data)
 }
-
 
 fn err_if_false<E>(value: bool, err: E) -> Result<(), E> {
     if value {

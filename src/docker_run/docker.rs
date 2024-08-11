@@ -1,10 +1,10 @@
 use crate::docker_run::http_extra;
-use serde::{Serialize, Deserialize};
-use std::io::{Read, Write};
-use std::io;
-use std::fmt;
-use std::convert::TryInto;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::convert::TryInto;
+use std::fmt;
+use std::io;
+use std::io::{Read, Write};
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
@@ -42,7 +42,6 @@ pub struct Ulimit {
     pub hard: i64,
 }
 
-
 #[derive(Debug)]
 pub enum Error {
     PrepareRequest(PrepareRequestError),
@@ -63,7 +62,6 @@ impl fmt::Display for Error {
     }
 }
 
-
 #[derive(Debug)]
 pub enum PrepareRequestError {
     SerializeBody(serde_json::Error),
@@ -83,7 +81,6 @@ impl fmt::Display for PrepareRequestError {
         }
     }
 }
-
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all(deserialize = "PascalCase"))]
@@ -124,12 +121,13 @@ pub fn version_request() -> Result<http::Request<http_extra::Body>, http::Error>
         .body(http_extra::Body::Empty())
 }
 
-pub fn version<Stream: Read + Write>(stream: Stream) -> Result<http::Response<VersionResponse>, Error> {
-    let req = version_request()
-        .map_err(|x| Error::PrepareRequest(PrepareRequestError::Request(x)))?;
+pub fn version<Stream: Read + Write>(
+    stream: Stream,
+) -> Result<http::Response<VersionResponse>, Error> {
+    let req =
+        version_request().map_err(|x| Error::PrepareRequest(PrepareRequestError::Request(x)))?;
 
-    http_extra::send_request(stream, req)
-        .map_err(Error::SendRequest)
+    http_extra::send_request(stream, req).map_err(Error::SendRequest)
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -140,9 +138,10 @@ pub struct ContainerCreatedResponse {
     pub warnings: Vec<String>,
 }
 
-pub fn create_container_request(config: &ContainerConfig) -> Result<http::Request<http_extra::Body>, PrepareRequestError> {
-    let body = serde_json::to_vec(config)
-        .map_err(PrepareRequestError::SerializeBody)?;
+pub fn create_container_request(
+    config: &ContainerConfig,
+) -> Result<http::Request<http_extra::Body>, PrepareRequestError> {
+    let body = serde_json::to_vec(config).map_err(PrepareRequestError::SerializeBody)?;
 
     http::Request::post("/containers/create")
         .header("Content-Type", "application/json")
@@ -154,16 +153,18 @@ pub fn create_container_request(config: &ContainerConfig) -> Result<http::Reques
         .map_err(PrepareRequestError::Request)
 }
 
-pub fn create_container<Stream: Read + Write>(stream: Stream, config: &ContainerConfig) -> Result<http::Response<ContainerCreatedResponse>, Error> {
-    let req = create_container_request(config)
-        .map_err(Error::PrepareRequest)?;
+pub fn create_container<Stream: Read + Write>(
+    stream: Stream,
+    config: &ContainerConfig,
+) -> Result<http::Response<ContainerCreatedResponse>, Error> {
+    let req = create_container_request(config).map_err(Error::PrepareRequest)?;
 
-    http_extra::send_request(stream, req)
-        .map_err(Error::SendRequest)
+    http_extra::send_request(stream, req).map_err(Error::SendRequest)
 }
 
-
-pub fn start_container_request(container_id: &str) -> Result<http::Request<http_extra::Body>, http::Error> {
+pub fn start_container_request(
+    container_id: &str,
+) -> Result<http::Request<http_extra::Body>, http::Error> {
     let url = format!("/containers/{}/start", container_id);
 
     http::Request::post(url)
@@ -173,16 +174,19 @@ pub fn start_container_request(container_id: &str) -> Result<http::Request<http_
         .body(http_extra::Body::Empty())
 }
 
-
-pub fn start_container<Stream: Read + Write>(stream: Stream, container_id: &str) -> Result<http::Response<http_extra::EmptyResponse>, Error> {
+pub fn start_container<Stream: Read + Write>(
+    stream: Stream,
+    container_id: &str,
+) -> Result<http::Response<http_extra::EmptyResponse>, Error> {
     let req = start_container_request(container_id)
         .map_err(|x| Error::PrepareRequest(PrepareRequestError::Request(x)))?;
 
-    http_extra::send_request(stream, req)
-        .map_err(Error::SendRequest)
+    http_extra::send_request(stream, req).map_err(Error::SendRequest)
 }
 
-pub fn remove_container_request(container_id: &str) -> Result<http::Request<http_extra::Body>, http::Error> {
+pub fn remove_container_request(
+    container_id: &str,
+) -> Result<http::Request<http_extra::Body>, http::Error> {
     let url = format!("/containers/{}?v=1&force=1", container_id);
 
     http::Request::delete(url)
@@ -192,29 +196,37 @@ pub fn remove_container_request(container_id: &str) -> Result<http::Request<http
         .body(http_extra::Body::Empty())
 }
 
-
-pub fn remove_container<Stream: Read + Write>(stream: Stream, container_id: &str) -> Result<http::Response<http_extra::EmptyResponse>, Error> {
+pub fn remove_container<Stream: Read + Write>(
+    stream: Stream,
+    container_id: &str,
+) -> Result<http::Response<http_extra::EmptyResponse>, Error> {
     let req = remove_container_request(container_id)
         .map_err(|x| Error::PrepareRequest(PrepareRequestError::Request(x)))?;
 
-    http_extra::send_request(stream, req)
-        .map_err(Error::SendRequest)
+    http_extra::send_request(stream, req).map_err(Error::SendRequest)
 }
 
-pub fn attach_container_request(container_id: &str) -> Result<http::Request<http_extra::Body>, http::Error> {
-    let url = format!("/containers/{}/attach?stream=1&stdout=1&stdin=1&stderr=1", container_id);
+pub fn attach_container_request(
+    container_id: &str,
+) -> Result<http::Request<http_extra::Body>, http::Error> {
+    let url = format!(
+        "/containers/{}/attach?stream=1&stdout=1&stdin=1&stderr=1",
+        container_id
+    );
 
     http::Request::post(url)
         .header("Host", "127.0.0.1")
         .body(http_extra::Body::Empty())
 }
 
-pub fn attach_container<Stream: Read + Write>(stream: Stream, container_id: &str) -> Result<http::Response<http_extra::EmptyResponse>, Error> {
+pub fn attach_container<Stream: Read + Write>(
+    stream: Stream,
+    container_id: &str,
+) -> Result<http::Response<http_extra::EmptyResponse>, Error> {
     let req = attach_container_request(container_id)
         .map_err(|x| Error::PrepareRequest(PrepareRequestError::Request(x)))?;
 
-    http_extra::send_request(stream, req)
-        .map_err(Error::SendRequest)
+    http_extra::send_request(stream, req).map_err(Error::SendRequest)
 }
 
 #[derive(Debug)]
@@ -262,14 +274,12 @@ impl fmt::Display for StreamError {
     }
 }
 
-
 #[derive(Debug)]
 pub struct StreamOutput {
     pub stdin: Vec<u8>,
     pub stdout: Vec<u8>,
     pub stderr: Vec<u8>,
 }
-
 
 pub fn read_stream<R: Read>(r: R, max_read_size: usize) -> Result<StreamOutput, StreamError> {
     let mut reader = iowrap::Eof::new(r);
@@ -283,7 +293,8 @@ pub fn read_stream<R: Read>(r: R, max_read_size: usize) -> Result<StreamOutput, 
         let stream_length = read_stream_length(&mut reader)?;
 
         let mut buffer = vec![0u8; stream_length];
-        reader.read_exact(&mut buffer)
+        reader
+            .read_exact(&mut buffer)
             .map_err(io_read_error_to_stream_error)?;
 
         match stream_type {
@@ -302,11 +313,17 @@ pub fn read_stream<R: Read>(r: R, max_read_size: usize) -> Result<StreamOutput, 
 
         read_size += stream_length;
 
-        err_if_false(read_size <= max_read_size, StreamError::MaxReadSize(max_read_size))?;
-
+        err_if_false(
+            read_size <= max_read_size,
+            StreamError::MaxReadSize(max_read_size),
+        )?;
     }
 
-    Ok(StreamOutput{stdin, stdout, stderr})
+    Ok(StreamOutput {
+        stdin,
+        stdout,
+        stderr,
+    })
 }
 
 fn io_read_error_to_stream_error(err: io::Error) -> StreamError {
@@ -316,7 +333,6 @@ fn io_read_error_to_stream_error(err: io::Error) -> StreamError {
         StreamError::Read(err)
     }
 }
-
 
 fn err_if_false<E>(value: bool, err: E) -> Result<(), E> {
     if value {
@@ -346,16 +362,17 @@ impl StreamType {
 
 fn read_stream_type<R: Read>(mut reader: R) -> Result<StreamType, StreamError> {
     let mut buffer = [0; 4];
-    reader.read_exact(&mut buffer)
+    reader
+        .read_exact(&mut buffer)
         .map_err(StreamError::ReadStreamType)?;
 
-    StreamType::from_byte(buffer[0])
-        .ok_or(StreamError::UnknownStreamType(buffer[0]))
+    StreamType::from_byte(buffer[0]).ok_or(StreamError::UnknownStreamType(buffer[0]))
 }
 
 fn read_stream_length<R: Read>(mut reader: R) -> Result<usize, StreamError> {
     let mut buffer = [0; 4];
-    reader.read_exact(&mut buffer)
+    reader
+        .read_exact(&mut buffer)
         .map_err(StreamError::ReadStreamLength)?;
 
     u32::from_be_bytes(buffer)
