@@ -216,7 +216,7 @@ fn get_transfer_encoding(headers: &header::HeaderMap<header::HeaderValue>) -> Tr
     let value = headers
         .get(TRANSFER_ENCODING)
         .map(|value| value.to_str().unwrap_or("").to_string())
-        .unwrap_or_else(|| "".to_string());
+        .unwrap_or_default();
 
     TransferEncoding::from_str(&value)
 }
@@ -248,10 +248,10 @@ pub fn format_request_headers<T>(req: &Request<T>) -> String {
 }
 
 fn write_request_head<T, W: Write>(mut writer: W, req: &Request<T>) -> Result<(), io::Error> {
-    let request_line = format_request_line(&req);
+    let request_line = format_request_line(req);
     write!(writer, "{}\r\n", request_line)?;
 
-    let headers = format_request_headers(&req);
+    let headers = format_request_headers(req);
     write!(writer, "{}\r\n\r\n", headers)
 }
 

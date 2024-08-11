@@ -17,7 +17,7 @@ pub fn handle(config: &config::Config) -> Result<api::SuccessResponse, api::Erro
 }
 
 fn get_version_info(stream_config: &unix_stream::Config) -> Result<VersionInfo, Error> {
-    let docker_response = unix_stream::with_stream(&stream_config, Error::UnixStream, |stream| {
+    let docker_response = unix_stream::with_stream(stream_config, Error::UnixStream, |stream| {
         docker::version(stream).map_err(Error::Version)
     })?;
 

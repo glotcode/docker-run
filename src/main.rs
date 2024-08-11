@@ -105,13 +105,13 @@ fn has_valid_access_token(request: &HttpRequest, config: &config::Config) -> boo
         .map(|token| token.to_str().unwrap_or(""));
 
     match access_token {
-        Some(token) => token == &config.api.access_token,
+        Some(token) => token == config.api.access_token,
         None => false,
     }
 }
 
 fn prepare_config(env: &environment::Environment) -> config::Config {
-    match build_config(&env) {
+    match build_config(env) {
         Ok(config) => config,
 
         Err(err) => {

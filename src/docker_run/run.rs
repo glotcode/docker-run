@@ -37,11 +37,11 @@ pub fn run<T: Serialize>(
 
     let container_id = &container_response.body().id;
 
-    let result = run_with_container(&stream_config, run_request, &container_id);
+    let result = run_with_container(&stream_config, run_request, container_id);
 
     if !debug.keep_container {
         let _ = unix_stream::with_stream(&stream_config, Error::UnixStream, |stream| {
-            match docker::remove_container(stream, &container_id) {
+            match docker::remove_container(stream, container_id) {
                 Ok(_) => {}
 
                 Err(err) => {
@@ -61,8 +61,8 @@ pub fn run_with_container<T: Serialize>(
     run_request: RunRequest<T>,
     container_id: &str,
 ) -> Result<Map<String, Value>, Error> {
-    unix_stream::with_stream(&stream_config, Error::UnixStream, |stream| {
-        docker::start_container(stream, &container_id).map_err(Error::StartContainer)
+    unix_stream::with_stream(stream_config, Error::UnixStream, |stream| {
+        docker::start_container(stream, container_id).map_err(Error::StartContainer)
     })?;
 
     let run_config = unix_stream::Config {
@@ -71,7 +71,7 @@ pub fn run_with_container<T: Serialize>(
     };
 
     unix_stream::with_stream(&run_config, Error::UnixStream, |stream| {
-        run_code(stream, &container_id, &run_request)
+        run_code(stream, container_id, &run_request)
     })
 }
 
