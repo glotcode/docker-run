@@ -1,6 +1,6 @@
 [package]
 name = "docker-run"
-version = "1.4.0"
+version = "1.5.0"
 authors = ["Petter Rasmussen <petter@hask.no>"]
 edition = "2018"
 
