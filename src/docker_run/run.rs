@@ -5,11 +5,16 @@ use std::fmt;
 use std::net;
 use std::os::unix::net::UnixStream;
 use std::str;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
+use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::docker_run::cleanup;
 use crate::docker_run::debug;
 use crate::docker_run::docker;
 use crate::docker_run::unix_stream;
+
+static CONTAINER_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug)]
 pub struct RunRequest<Payload: Serialize> {
@@ -28,32 +33,47 @@ pub fn run<T: Serialize>(
     stream_config: unix_stream::Config,
     run_request: RunRequest<T>,
     debug: debug::Config,
+    cleanup: &cleanup::Handle,
 ) -> Result<Map<String, Value>, Error> {
+    let container_name = next_container_name();
     let container_response =
-        unix_stream::with_stream(&stream_config, Error::UnixStream, |stream| {
-            docker::create_container(stream, &run_request.container_config)
+        match unix_stream::with_stream(&stream_config, Error::UnixStream, |stream| {
+            docker::create_container(stream, &run_request.container_config, &container_name)
                 .map_err(Error::CreateContainer)
-        })?;
+        }) {
+            Ok(response) => response,
+            Err(err) => {
+                if !debug.keep_container {
+                    cleanup.schedule_after_ambiguous_create(container_name);
+                }
+                return Err(err);
+            }
+        };
 
     let container_id = &container_response.body().id;
 
     let result = run_with_container(&stream_config, run_request, container_id);
 
     if !debug.keep_container {
-        let _ = unix_stream::with_stream(&stream_config, Error::UnixStream, |stream| {
-            match docker::remove_container(stream, container_id) {
-                Ok(_) => {}
-
-                Err(err) => {
-                    log::error!("Failed to remove container: {}", err);
-                }
-            }
-
-            Ok(())
-        });
+        cleanup.schedule(container_name);
     }
 
     result
+}
+
+fn next_container_name() -> String {
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    let sequence = CONTAINER_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+
+    format!(
+        "docker-run-{}-{}-{}",
+        std::process::id(),
+        timestamp,
+        sequence
+    )
 }
 
 pub fn run_with_container<T: Serialize>(

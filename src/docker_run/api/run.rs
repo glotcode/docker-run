@@ -25,6 +25,7 @@ pub fn handle(
             limits: config.run.clone(),
         },
         config.debug.clone(),
+        &config.cleanup,
     )
     .map_err(handle_error)?;
 

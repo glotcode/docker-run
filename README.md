@@ -7,6 +7,8 @@ The payload is passed to the container by attaching to it and writing it to stdi
 The communication with the docker daemon happens via it's api over the unix socket.
 This is used to run code on [glot.io](https://glot.io).
 
+Container cleanup runs in background workers and does not delay the run response. Cleanup is retried when Docker times out, and stale `docker-run-*` containers in the `created` state are recovered periodically. Set `DEBUG_KEEP_CONTAINER=true` to disable both cleanup and stale-container recovery.
+
 
 ## Api
 | Action                       | Method | Route      | Requires token |
@@ -126,3 +128,5 @@ Depending on your use-case you should also consider to:
 | DOCKER_CONTAINER_WORK_DIR_PATH         | &lt;filepath&gt;              | Will add a writeable tmpfs mount at the given path                           |
 | DOCKER_CONTAINER_WORK_DIR_OPTIONS      | &lt;string&gt;                | Mount options for the work dir (default: rw,exec,nosuid,size=131072k)        |
 | DEBUG_KEEP_CONTAINER                   | &lt;bool&gt;                  | Don't remove the container after run is completed (for debugging)            |
+| DOCKER_CLEANUP_WORKER_THREADS          | &lt;integer&gt;               | Background container cleanup workers (default: 2)                             |
+| DOCKER_CLEANUP_UNIX_SOCKET_TIMEOUT     | &lt;seconds&gt;               | Docker socket timeout for background cleanup (default: 30)                    |

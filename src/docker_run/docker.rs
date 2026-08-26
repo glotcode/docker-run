@@ -140,10 +140,12 @@ pub struct ContainerCreatedResponse {
 
 pub fn create_container_request(
     config: &ContainerConfig,
+    container_name: &str,
 ) -> Result<http::Request<http_extra::Body>, PrepareRequestError> {
     let body = serde_json::to_vec(config).map_err(PrepareRequestError::SerializeBody)?;
+    let url = format!("/containers/create?name={}", container_name);
 
-    http::Request::post("/containers/create")
+    http::Request::post(url)
         .header("Content-Type", "application/json")
         .header("Accept", "application/json")
         .header("Host", "127.0.0.1")
@@ -156,8 +158,35 @@ pub fn create_container_request(
 pub fn create_container<Stream: Read + Write>(
     stream: Stream,
     config: &ContainerConfig,
+    container_name: &str,
 ) -> Result<http::Response<ContainerCreatedResponse>, Error> {
-    let req = create_container_request(config).map_err(Error::PrepareRequest)?;
+    let req = create_container_request(config, container_name).map_err(Error::PrepareRequest)?;
+
+    http_extra::send_request(stream, req).map_err(Error::SendRequest)
+}
+
+#[derive(Deserialize, Clone, Debug)]
+#[serde(rename_all(deserialize = "PascalCase"))]
+pub struct ContainerListItem {
+    pub id: String,
+    pub names: Vec<String>,
+    pub state: String,
+    pub created: i64,
+}
+
+pub fn list_containers_request() -> Result<http::Request<http_extra::Body>, http::Error> {
+    http::Request::get("/containers/json?all=1")
+        .header("Accept", "application/json")
+        .header("Host", "127.0.0.1")
+        .header("Connection", "close")
+        .body(http_extra::Body::Empty())
+}
+
+pub fn list_containers<Stream: Read + Write>(
+    stream: Stream,
+) -> Result<http::Response<Vec<ContainerListItem>>, Error> {
+    let req = list_containers_request()
+        .map_err(|x| Error::PrepareRequest(PrepareRequestError::Request(x)))?;
 
     http_extra::send_request(stream, req).map_err(Error::SendRequest)
 }
@@ -204,6 +233,14 @@ pub fn remove_container<Stream: Read + Write>(
         .map_err(|x| Error::PrepareRequest(PrepareRequestError::Request(x)))?;
 
     http_extra::send_request(stream, req).map_err(Error::SendRequest)
+}
+
+pub fn is_not_found(err: &Error) -> bool {
+    matches!(
+        err,
+        Error::SendRequest(http_extra::Error::BadStatus(status, _))
+            if *status == http::StatusCode::NOT_FOUND
+    )
 }
 
 pub fn attach_container_request(
@@ -336,6 +373,52 @@ fn io_read_error_to_stream_error(err: io::Error) -> StreamError {
 
 fn err_if_false<E>(value: bool, err: E) -> Result<(), E> {
     if value { Ok(()) } else { Err(err) }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn container_config() -> ContainerConfig {
+        ContainerConfig {
+            hostname: "glot".to_string(),
+            user: "glot".to_string(),
+            attach_stdin: true,
+            attach_stdout: true,
+            attach_stderr: true,
+            tty: false,
+            open_stdin: true,
+            stdin_once: true,
+            image: "glot/python:latest".to_string(),
+            network_disabled: true,
+            host_config: HostConfig {
+                memory: 1_000_000,
+                privileged: false,
+                cap_add: vec![],
+                cap_drop: vec![],
+                ulimits: vec![],
+                readonly_rootfs: true,
+                tmpfs: HashMap::new(),
+            },
+        }
+    }
+
+    #[test]
+    fn create_request_uses_the_recoverable_container_name() {
+        let request = create_container_request(&container_config(), "docker-run-123").unwrap();
+
+        assert_eq!(request.uri(), "/containers/create?name=docker-run-123");
+    }
+
+    #[test]
+    fn not_found_is_recognized_as_already_removed() {
+        let error = Error::SendRequest(http_extra::Error::BadStatus(
+            http::StatusCode::NOT_FOUND,
+            vec![],
+        ));
+
+        assert!(is_not_found(&error));
+    }
 }
 
 #[derive(Debug)]

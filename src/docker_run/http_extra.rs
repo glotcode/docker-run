@@ -197,7 +197,7 @@ fn get_content_length(headers: &header::HeaderMap<header::HeaderValue>) -> usize
 enum TransferEncoding {
     NoEncoding(),
     Chunked(),
-    Other(String),
+    Other(),
 }
 
 impl TransferEncoding {
@@ -207,7 +207,7 @@ impl TransferEncoding {
 
             "" => TransferEncoding::NoEncoding(),
 
-            other => TransferEncoding::Other(other.to_string()),
+            _ => TransferEncoding::Other(),
         }
     }
 }

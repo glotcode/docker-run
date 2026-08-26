@@ -1,4 +1,5 @@
 pub mod api;
+pub mod cleanup;
 pub mod config;
 pub mod debug;
 pub mod docker;

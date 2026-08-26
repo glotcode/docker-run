@@ -12,6 +12,7 @@ use actix_web::http::header::ContentType;
 use actix_web::{get, post, web};
 
 use docker_run::api;
+use docker_run::cleanup;
 use docker_run::config;
 use docker_run::debug;
 use docker_run::environment;
@@ -128,6 +129,8 @@ fn build_config(env: &environment::Environment) -> Result<config::Config, enviro
     let container = build_container_config(env)?;
     let run = build_run_config(env)?;
     let debug = build_debug_config(env)?;
+    let cleanup_config = build_cleanup_config(env, !debug.keep_container)?;
+    let cleanup = cleanup::start(unix_socket.clone(), cleanup_config);
 
     Ok(config::Config {
         server,
@@ -136,6 +139,22 @@ fn build_config(env: &environment::Environment) -> Result<config::Config, enviro
         container,
         run,
         debug,
+        cleanup,
+    })
+}
+
+fn build_cleanup_config(
+    env: &environment::Environment,
+    recover_stale: bool,
+) -> Result<cleanup::Config, environment::Error> {
+    let worker_threads = environment::lookup(env, "DOCKER_CLEANUP_WORKER_THREADS").unwrap_or(2);
+    let io_timeout: u64 =
+        environment::lookup(env, "DOCKER_CLEANUP_UNIX_SOCKET_TIMEOUT").unwrap_or(30);
+
+    Ok(cleanup::Config {
+        worker_threads,
+        io_timeout: Duration::from_secs(io_timeout),
+        recover_stale,
     })
 }
 

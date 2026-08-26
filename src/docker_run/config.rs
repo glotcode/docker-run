@@ -1,4 +1,5 @@
 use crate::docker_run::api;
+use crate::docker_run::cleanup;
 use crate::docker_run::debug;
 use crate::docker_run::run;
 use crate::docker_run::unix_stream;
@@ -11,6 +12,7 @@ pub struct Config {
     pub container: run::ContainerConfig,
     pub run: run::Limits,
     pub debug: debug::Config,
+    pub cleanup: cleanup::Handle,
 }
 
 #[derive(Clone, Debug)]
