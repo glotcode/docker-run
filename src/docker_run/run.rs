@@ -247,9 +247,5 @@ fn decode_dict(data: &[u8]) -> Result<Map<String, Value>, serde_json::Error> {
 }
 
 fn err_if_false<E>(value: bool, err: E) -> Result<(), E> {
-    if value {
-        Ok(())
-    } else {
-        Err(err)
-    }
+    if value { Ok(()) } else { Err(err) }
 }

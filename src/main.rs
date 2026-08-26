@@ -3,12 +3,12 @@ mod docker_run;
 use std::process;
 use std::time::Duration;
 
-use actix_web::http::header::ContentType;
-use actix_web::http::StatusCode;
 use actix_web::App;
 use actix_web::HttpRequest;
 use actix_web::HttpResponse;
 use actix_web::HttpServer;
+use actix_web::http::StatusCode;
+use actix_web::http::header::ContentType;
 use actix_web::{get, post, web};
 
 use docker_run::api;

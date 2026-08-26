@@ -335,11 +335,7 @@ fn io_read_error_to_stream_error(err: io::Error) -> StreamError {
 }
 
 fn err_if_false<E>(value: bool, err: E) -> Result<(), E> {
-    if value {
-        Ok(())
-    } else {
-        Err(err)
-    }
+    if value { Ok(()) } else { Err(err) }
 }
 
 #[derive(Debug)]

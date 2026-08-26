@@ -4,8 +4,8 @@ use http::header::TRANSFER_ENCODING;
 use http::response;
 use http::status;
 use http::{Request, Response};
-use serde::de::DeserializeOwned;
 use serde::Deserialize;
+use serde::de::DeserializeOwned;
 use std::fmt;
 use std::io;
 use std::io::BufRead;
@@ -390,9 +390,5 @@ fn to_http_parts(parsed: httparse::Response) -> Result<response::Parts, Response
 }
 
 fn err_if_false<E>(value: bool, err: E) -> Result<(), E> {
-    if value {
-        Ok(())
-    } else {
-        Err(err)
-    }
+    if value { Ok(()) } else { Err(err) }
 }
