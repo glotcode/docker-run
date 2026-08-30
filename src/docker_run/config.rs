@@ -3,6 +3,7 @@ use crate::docker_run::cleanup;
 use crate::docker_run::debug;
 use crate::docker_run::run;
 use crate::docker_run::unix_stream;
+use crate::docker_run::warm_pool;
 
 #[derive(Clone, Debug)]
 pub struct Config {
@@ -13,6 +14,7 @@ pub struct Config {
     pub run: run::Limits,
     pub debug: debug::Config,
     pub cleanup: cleanup::Handle,
+    pub warm_pool: warm_pool::Handle,
 }
 
 #[derive(Clone, Debug)]

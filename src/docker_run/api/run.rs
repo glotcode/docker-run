@@ -30,6 +30,7 @@ pub fn handle(
         },
         config.debug.clone(),
         &config.cleanup,
+        &config.warm_pool,
         measurements,
     )
     .map_err(handle_error)?;

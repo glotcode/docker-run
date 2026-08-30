@@ -13,6 +13,7 @@ use crate::docker_run::cleanup;
 use crate::docker_run::debug;
 use crate::docker_run::docker;
 use crate::docker_run::unix_stream;
+use crate::docker_run::warm_pool;
 
 static CONTAINER_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
@@ -40,6 +41,10 @@ pub struct Measurements {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub container_start_us: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub prewarm_pool_hit: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prewarm_pool_claim_us: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub container_attach_us: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub payload_write_us: Option<u64>,
@@ -61,8 +66,22 @@ pub fn run<T: Serialize>(
     run_request: RunRequest<T>,
     debug: debug::Config,
     cleanup: &cleanup::Handle,
+    warm_pool: &warm_pool::Handle,
     measurements: &mut Measurements,
 ) -> Result<Map<String, Value>, Error> {
+    let started_at = Instant::now();
+    let claim = warm_pool.claim(&run_request.container_config.image);
+    measurements.prewarm_pool_claim_us = Some(elapsed_us(started_at));
+
+    match claim {
+        warm_pool::Claim::Hit(lease) => {
+            measurements.prewarm_pool_hit = Some(true);
+            return run_with_prewarmed_container(&stream_config, run_request, lease, measurements);
+        }
+        warm_pool::Claim::Miss => measurements.prewarm_pool_hit = Some(false),
+        warm_pool::Claim::NotConfigured => measurements.prewarm_pool_claim_us = None,
+    }
+
     let container_name = next_container_name();
     let started_at = Instant::now();
     let container_response =
@@ -92,6 +111,23 @@ pub fn run<T: Serialize>(
     }
 
     result
+}
+
+fn run_with_prewarmed_container<T: Serialize>(
+    stream_config: &unix_stream::Config,
+    run_request: RunRequest<T>,
+    lease: warm_pool::Lease,
+    measurements: &mut Measurements,
+) -> Result<Map<String, Value>, Error> {
+    let run_config = unix_stream::Config {
+        read_timeout: run_request.limits.max_execution_time,
+        ..stream_config.clone()
+    };
+
+    // The lease schedules this single-use container for removal on every exit path.
+    unix_stream::with_stream(&run_config, Error::UnixStream, |stream| {
+        run_code(stream, lease.container_id(), &run_request, measurements)
+    })
 }
 
 fn next_container_name() -> String {

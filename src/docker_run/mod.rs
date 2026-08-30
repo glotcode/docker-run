@@ -7,3 +7,4 @@ pub mod environment;
 pub mod http_extra;
 pub mod run;
 pub mod unix_stream;
+pub mod warm_pool;

@@ -2,12 +2,29 @@
 
 ## Overview
 docker-run provides a http api for running untrusted code inside transient docker containers.
-For every run request a new container is started and deleted.
+Every run request gets a fresh, single-use container that is deleted afterward. The
+container can either be created on demand or claimed from a prewarmed pool.
 The payload is passed to the container by attaching to it and writing it to stdin. The result is read from stdout.
 The communication with the docker daemon happens via it's api over the unix socket.
 This is used to run code on [glot.io](https://glot.io).
 
 Container cleanup runs in background workers and does not delay the run response. Cleanup is retried when Docker times out, and stale `docker-run-*` containers in the `created` state are recovered periodically. Set `DEBUG_KEEP_CONTAINER=true` to disable both cleanup and stale-container recovery.
+
+## Prewarmed containers
+
+Docker-run can keep a bounded pool of running, unused containers for selected images.
+Each prewarmed container is claimed atomically, executes exactly one request, and is
+then removed; containers are never reused. A pool miss falls back to the normal
+create-and-start path while the pool is replenished in the background.
+
+Set `DOCKER_PREWARM_IMAGES` to a space-separated list of image names. The pool is
+disabled when this variable is empty. `DOCKER_PREWARM_POOL_SIZE` controls the target
+number of ready containers per image and defaults to 1.
+
+Prewarmed containers use the `docker-run-prewarm-` name prefix. Docker-run removes
+all containers with that prefix before filling pools at startup and again after the
+HTTP server has shut down. This also recovers containers left behind by an unclean
+process exit. Prewarming is disabled while `DEBUG_KEEP_CONTAINER=true`.
 
 
 ## Api
@@ -19,7 +36,7 @@ Container cleanup runs in background workers and does not delay the run response
 
 
 ## Docker images
-When a run request is posted to docker-run it will create a new temporary container.
+Each run request is assigned a fresh temporary container.
 The container is required to listen for a json payload on stdin and must write the
 run result to stdout as a json object containing the properties: stdout, stderr and error.
 The docker images used by [glot.io](https://glot.io) can be found [here](https://github.com/glotcode/glot-images).
@@ -130,3 +147,6 @@ Depending on your use-case you should also consider to:
 | DEBUG_KEEP_CONTAINER                   | &lt;bool&gt;                  | Don't remove the container after run is completed (for debugging)            |
 | DOCKER_CLEANUP_WORKER_THREADS          | &lt;integer&gt;               | Background container cleanup workers (default: 2)                             |
 | DOCKER_CLEANUP_UNIX_SOCKET_TIMEOUT     | &lt;seconds&gt;               | Docker socket timeout for background cleanup (default: 30)                    |
+| DOCKER_PREWARM_IMAGES                  | &lt;space separated list&gt;  | Images with prewarmed pools; empty disables prewarming                         |
+| DOCKER_PREWARM_POOL_SIZE               | &lt;integer&gt;               | Target number of ready containers per configured image (default: 1)           |
+| DOCKER_PREWARM_WORKER_THREADS          | &lt;integer&gt;               | Background workers used to replenish prewarmed pools (default: 2)             |

@@ -6,7 +6,7 @@ use std::fmt;
 use std::io;
 use std::io::{Read, Write};
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct ContainerConfig {
     pub hostname: String,
@@ -22,7 +22,7 @@ pub struct ContainerConfig {
     pub host_config: HostConfig,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct HostConfig {
     pub memory: i64,
@@ -34,7 +34,7 @@ pub struct HostConfig {
     pub tmpfs: HashMap<String, String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct Ulimit {
     pub name: String,
@@ -243,6 +243,14 @@ pub fn is_not_found(err: &Error) -> bool {
     )
 }
 
+pub fn create_error_is_ambiguous(err: &Error) -> bool {
+    match err {
+        Error::PrepareRequest(_) => false,
+        Error::SendRequest(http_extra::Error::BadStatus(_, _)) => false,
+        Error::SendRequest(_) => true,
+    }
+}
+
 pub fn attach_container_request(
     container_id: &str,
 ) -> Result<http::Request<http_extra::Body>, http::Error> {
@@ -418,6 +426,16 @@ mod tests {
         ));
 
         assert!(is_not_found(&error));
+    }
+
+    #[test]
+    fn rejected_create_is_not_ambiguous() {
+        let error = Error::SendRequest(http_extra::Error::BadStatus(
+            http::StatusCode::NOT_FOUND,
+            vec![],
+        ));
+
+        assert!(!create_error_is_ambiguous(&error));
     }
 }
 

@@ -20,6 +20,7 @@ use docker_run::debug;
 use docker_run::environment;
 use docker_run::run;
 use docker_run::unix_stream;
+use docker_run::warm_pool;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -34,7 +35,8 @@ async fn main() -> std::io::Result<()> {
 
     log::info!("Listening on {}:{}", listen_addr, listen_port,);
 
-    HttpServer::new(move || {
+    let shutdown_pool = config.warm_pool.clone();
+    let server = HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(config.clone()))
             // Match actix-web's default Json extractor limit while parsing the
@@ -46,9 +48,19 @@ async fn main() -> std::io::Result<()> {
     })
     .workers(worker_threads)
     .client_request_timeout(Duration::from_secs(60))
-    .bind((listen_addr, listen_port))?
-    .run()
-    .await
+    .bind((listen_addr, listen_port));
+
+    let server = match server {
+        Ok(server) => server,
+        Err(err) => {
+            shutdown_pool.shutdown();
+            return Err(err);
+        }
+    };
+
+    let result = server.run().await;
+    shutdown_pool.shutdown();
+    result
 }
 
 #[get("/")]
@@ -218,7 +230,7 @@ fn prepare_config(env: &environment::Environment) -> config::Config {
     }
 }
 
-fn build_config(env: &environment::Environment) -> Result<config::Config, environment::Error> {
+fn build_config(env: &environment::Environment) -> Result<config::Config, BuildConfigError> {
     let server = build_server_config(env)?;
     let api = build_api_config(env)?;
     let unix_socket = build_unix_socket_config(env)?;
@@ -226,7 +238,23 @@ fn build_config(env: &environment::Environment) -> Result<config::Config, enviro
     let run = build_run_config(env)?;
     let debug = build_debug_config(env)?;
     let cleanup_config = build_cleanup_config(env, !debug.keep_container)?;
-    let cleanup = cleanup::start(unix_socket.clone(), cleanup_config);
+    let cleanup = cleanup::start(unix_socket.clone(), cleanup_config.clone());
+    let mut warm_pool_config = build_warm_pool_config(env, cleanup_config.io_timeout)?;
+    if debug.keep_container && warm_pool_config.size_per_image > 0 {
+        log::warn!("Disabling prewarming because DEBUG_KEEP_CONTAINER is enabled");
+        warm_pool_config.size_per_image = 0;
+    }
+    let warm_container_configs = warm_pool_config
+        .images
+        .iter()
+        .map(|image| run::prepare_container_config(image.clone(), container.clone()))
+        .collect();
+    let warm_pool = warm_pool::start(
+        unix_socket.clone(),
+        warm_pool_config,
+        warm_container_configs,
+        cleanup.clone(),
+    )?;
 
     Ok(config::Config {
         server,
@@ -236,7 +264,53 @@ fn build_config(env: &environment::Environment) -> Result<config::Config, enviro
         run,
         debug,
         cleanup,
+        warm_pool,
     })
+}
+
+fn build_warm_pool_config(
+    env: &environment::Environment,
+    io_timeout: Duration,
+) -> Result<warm_pool::Config, environment::Error> {
+    let images = environment::lookup_optional(env, "DOCKER_PREWARM_IMAGES")?.unwrap_or_default();
+    let size_per_image =
+        environment::lookup_optional(env, "DOCKER_PREWARM_POOL_SIZE")?.unwrap_or(1);
+    let worker_threads =
+        environment::lookup_optional(env, "DOCKER_PREWARM_WORKER_THREADS")?.unwrap_or(2);
+
+    Ok(warm_pool::Config {
+        images: environment::space_separated_string(images),
+        size_per_image,
+        worker_threads,
+        io_timeout,
+    })
+}
+
+#[derive(Debug)]
+enum BuildConfigError {
+    Environment(environment::Error),
+    WarmPool(warm_pool::Error),
+}
+
+impl std::fmt::Display for BuildConfigError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BuildConfigError::Environment(err) => write!(f, "{err}"),
+            BuildConfigError::WarmPool(err) => write!(f, "{err}"),
+        }
+    }
+}
+
+impl From<environment::Error> for BuildConfigError {
+    fn from(err: environment::Error) -> Self {
+        BuildConfigError::Environment(err)
+    }
+}
+
+impl From<warm_pool::Error> for BuildConfigError {
+    fn from(err: warm_pool::Error) -> Self {
+        BuildConfigError::WarmPool(err)
+    }
 }
 
 fn build_cleanup_config(
@@ -376,5 +450,35 @@ mod tests {
         assert_eq!(value["measurements"]["request_parse_us"], 12);
         assert_eq!(value["measurements"]["total_us"], 34);
         assert!(value["measurements"].get("container_create_us").is_none());
+    }
+
+    #[test]
+    fn prewarm_config_is_disabled_without_images() {
+        let config =
+            build_warm_pool_config(&environment::Environment::new(), Duration::from_secs(3))
+                .expect("default prewarm config should build");
+
+        assert!(config.images.is_empty());
+        assert_eq!(config.size_per_image, 1);
+        assert_eq!(config.worker_threads, 2);
+    }
+
+    #[test]
+    fn prewarm_config_parses_images_and_limits() {
+        let env = environment::Environment::from([
+            (
+                "DOCKER_PREWARM_IMAGES".to_string(),
+                "glot/python:latest glot/rust:latest".to_string(),
+            ),
+            ("DOCKER_PREWARM_POOL_SIZE".to_string(), "4".to_string()),
+            ("DOCKER_PREWARM_WORKER_THREADS".to_string(), "3".to_string()),
+        ]);
+
+        let config = build_warm_pool_config(&env, Duration::from_secs(3))
+            .expect("prewarm config should build");
+
+        assert_eq!(config.images, ["glot/python:latest", "glot/rust:latest"]);
+        assert_eq!(config.size_per_image, 4);
+        assert_eq!(config.worker_threads, 3);
     }
 }

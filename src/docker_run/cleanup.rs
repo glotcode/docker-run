@@ -107,26 +107,32 @@ fn worker(
             Ok(Job::Remove {
                 target,
                 wait_for_creation,
-            }) => remove_with_retry(&stream_config, &target, wait_for_creation),
+            }) => {
+                let _ = remove_with_retry(&stream_config, &target, wait_for_creation);
+            }
             Ok(Job::Recover) => recover_created_containers(&stream_config, &handle),
             Err(_) => return,
         }
     }
 }
 
-fn remove_with_retry(stream_config: &unix_stream::Config, target: &str, wait_for_creation: bool) {
+pub(crate) fn remove_with_retry(
+    stream_config: &unix_stream::Config,
+    target: &str,
+    wait_for_creation: bool,
+) -> Result<(), CleanupError> {
     for attempt in 1..=MAX_ATTEMPTS {
         let result = unix_stream::with_stream(stream_config, CleanupError::UnixStream, |stream| {
             docker::remove_container(stream, target).map_err(CleanupError::Docker)
         });
 
         match result {
-            Ok(_) => return,
+            Ok(_) => return Ok(()),
             Err(err)
                 if docker_error_is_not_found(&err)
                     && (!wait_for_creation || attempt == MAX_ATTEMPTS) =>
             {
-                return;
+                return Ok(());
             }
             Err(err) if attempt < MAX_ATTEMPTS => {
                 log::warn!(
@@ -138,9 +144,31 @@ fn remove_with_retry(stream_config: &unix_stream::Config, target: &str, wait_for
                 log::error!(
                     "Container cleanup failed after {MAX_ATTEMPTS} attempts for {target}: {err}"
                 );
+                return Err(err);
             }
         }
     }
+
+    unreachable!("container cleanup retry loop always returns")
+}
+
+pub(crate) fn remove_containers_with_prefix(
+    stream_config: &unix_stream::Config,
+    prefix: &str,
+) -> Result<usize, CleanupError> {
+    let response = unix_stream::with_stream(stream_config, CleanupError::UnixStream, |stream| {
+        docker::list_containers(stream).map_err(CleanupError::Docker)
+    })?;
+
+    let mut removed = 0;
+    for container in response.into_body() {
+        if has_name_prefix(&container, prefix) {
+            remove_with_retry(stream_config, &container.id, false)?;
+            removed += 1;
+        }
+    }
+
+    Ok(removed)
 }
 
 fn docker_error_is_not_found(err: &CleanupError) -> bool {
@@ -174,17 +202,21 @@ fn recover_created_containers(stream_config: &unix_stream::Config, handle: &Hand
 }
 
 fn is_stale_managed_container(container: &docker::ContainerListItem, now: i64) -> bool {
-    let is_managed = container.names.iter().any(|name| {
-        name.strip_prefix('/')
-            .is_some_and(|name| name.starts_with(CONTAINER_NAME_PREFIX))
-    });
+    let is_managed = has_name_prefix(container, CONTAINER_NAME_PREFIX);
     let age = now.saturating_sub(container.created);
 
     is_managed && container.state == "created" && age >= STALE_CREATED_AGE.as_secs() as i64
 }
 
+fn has_name_prefix(container: &docker::ContainerListItem, prefix: &str) -> bool {
+    container.names.iter().any(|name| {
+        name.strip_prefix('/')
+            .is_some_and(|name| name.starts_with(prefix))
+    })
+}
+
 #[derive(Debug)]
-enum CleanupError {
+pub(crate) enum CleanupError {
     UnixStream(unix_stream::Error),
     Docker(docker::Error),
 }
@@ -229,5 +261,13 @@ mod tests {
             &container("/someone-else", "created", 100),
             160
         ));
+    }
+
+    #[test]
+    fn name_prefix_matching_is_exact() {
+        let item = container("/docker-run-prewarm-123", "running", 100);
+
+        assert!(has_name_prefix(&item, "docker-run-prewarm-"));
+        assert!(!has_name_prefix(&item, "docker-run-warmer-"));
     }
 }
