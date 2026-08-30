@@ -354,7 +354,7 @@ dependencies = [
 
 [[package]]
 name = "docker-run"
-version = "1.8.0"
+version = "1.9.0"
 dependencies = [
  "actix-web",
  "env_logger",
