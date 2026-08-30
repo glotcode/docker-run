@@ -7,7 +7,7 @@ use std::os::unix::net::UnixStream;
 use std::str;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use crate::docker_run::cleanup;
 use crate::docker_run::debug;
@@ -29,20 +29,53 @@ pub struct Limits {
     pub max_output_size: usize,
 }
 
+#[derive(Debug, Default, serde::Serialize)]
+pub struct Measurements {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub request_parse_us: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub container_config_us: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub container_create_us: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub container_start_us: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub container_attach_us: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payload_write_us: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub execution_read_us: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stdout_decode_us: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub response_build_us: Option<u64>,
+    pub total_us: u64,
+}
+
+pub fn elapsed_us(started_at: Instant) -> u64 {
+    started_at.elapsed().as_micros().min(u64::MAX as u128) as u64
+}
+
 pub fn run<T: Serialize>(
     stream_config: unix_stream::Config,
     run_request: RunRequest<T>,
     debug: debug::Config,
     cleanup: &cleanup::Handle,
+    measurements: &mut Measurements,
 ) -> Result<Map<String, Value>, Error> {
     let container_name = next_container_name();
+    let started_at = Instant::now();
     let container_response =
         match unix_stream::with_stream(&stream_config, Error::UnixStream, |stream| {
             docker::create_container(stream, &run_request.container_config, &container_name)
                 .map_err(Error::CreateContainer)
         }) {
-            Ok(response) => response,
+            Ok(response) => {
+                measurements.container_create_us = Some(elapsed_us(started_at));
+                response
+            }
             Err(err) => {
+                measurements.container_create_us = Some(elapsed_us(started_at));
                 if !debug.keep_container {
                     cleanup.schedule_after_ambiguous_create(container_name);
                 }
@@ -52,7 +85,7 @@ pub fn run<T: Serialize>(
 
     let container_id = &container_response.body().id;
 
-    let result = run_with_container(&stream_config, run_request, container_id);
+    let result = run_with_container(&stream_config, run_request, container_id, measurements);
 
     if !debug.keep_container {
         cleanup.schedule(container_name);
@@ -80,10 +113,14 @@ pub fn run_with_container<T: Serialize>(
     stream_config: &unix_stream::Config,
     run_request: RunRequest<T>,
     container_id: &str,
+    measurements: &mut Measurements,
 ) -> Result<Map<String, Value>, Error> {
-    unix_stream::with_stream(stream_config, Error::UnixStream, |stream| {
+    let started_at = Instant::now();
+    let start_result = unix_stream::with_stream(stream_config, Error::UnixStream, |stream| {
         docker::start_container(stream, container_id).map_err(Error::StartContainer)
-    })?;
+    });
+    measurements.container_start_us = Some(elapsed_us(started_at));
+    start_result?;
 
     let run_config = unix_stream::Config {
         read_timeout: run_request.limits.max_execution_time,
@@ -91,7 +128,7 @@ pub fn run_with_container<T: Serialize>(
     };
 
     unix_stream::with_stream(&run_config, Error::UnixStream, |stream| {
-        run_code(stream, container_id, &run_request)
+        run_code(stream, container_id, &run_request, measurements)
     })
 }
 
@@ -99,21 +136,33 @@ pub fn run_code<Payload>(
     mut stream: &UnixStream,
     container_id: &str,
     run_request: &RunRequest<Payload>,
+    measurements: &mut Measurements,
 ) -> Result<Map<String, Value>, Error>
 where
     Payload: Serialize,
 {
-    docker::attach_container(&mut stream, container_id).map_err(Error::AttachContainer)?;
+    let started_at = Instant::now();
+    let attach_result =
+        docker::attach_container(&mut stream, container_id).map_err(Error::AttachContainer);
+    measurements.container_attach_us = Some(elapsed_us(started_at));
+    attach_result?;
 
     // Send payload
-    serde_json::to_writer(&mut stream, &run_request.payload).map_err(Error::SerializePayload)?;
+    let started_at = Instant::now();
+    let write_result =
+        serde_json::to_writer(&mut stream, &run_request.payload).map_err(Error::SerializePayload);
+    measurements.payload_write_us = Some(elapsed_us(started_at));
+    write_result?;
 
     // Shutdown write stream which will trigger an EOF on the reader
     let _ = stream.shutdown(net::Shutdown::Write);
 
     // Read response
-    let output = docker::read_stream(stream, run_request.limits.max_output_size)
-        .map_err(Error::ReadStream)?;
+    let started_at = Instant::now();
+    let read_result =
+        docker::read_stream(stream, run_request.limits.max_output_size).map_err(Error::ReadStream);
+    measurements.execution_read_us = Some(elapsed_us(started_at));
+    let output = read_result?;
 
     // Return error if we recieved stdin or stderr data from the stream
     err_if_false(
@@ -123,7 +172,10 @@ where
     err_if_false(output.stderr.is_empty(), Error::StreamStderr(output.stderr))?;
 
     // Decode stdout data to dict
-    decode_dict(&output.stdout).map_err(Error::StreamStdoutDecode)
+    let started_at = Instant::now();
+    let decode_result = decode_dict(&output.stdout).map_err(Error::StreamStdoutDecode);
+    measurements.stdout_decode_us = Some(elapsed_us(started_at));
+    decode_result
 }
 
 #[derive(Debug, Clone)]

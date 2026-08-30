@@ -1,15 +1,17 @@
 mod docker_run;
 
 use std::process;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use actix_web::App;
+use actix_web::HttpMessage;
 use actix_web::HttpRequest;
 use actix_web::HttpResponse;
 use actix_web::HttpServer;
 use actix_web::http::StatusCode;
 use actix_web::http::header::ContentType;
 use actix_web::{get, post, web};
+use serde::Serialize;
 
 use docker_run::api;
 use docker_run::cleanup;
@@ -35,6 +37,9 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(config.clone()))
+            // Match actix-web's default Json extractor limit while parsing the
+            // run request explicitly so deserialization can be measured.
+            .app_data(web::PayloadConfig::new(2 * 1024 * 1024))
             .service(index_api)
             .service(version_api)
             .service(run_api)
@@ -67,15 +72,106 @@ async fn version_api(req: HttpRequest, config: web::Data<config::Config>) -> Htt
 #[post("/run")]
 async fn run_api(
     req: HttpRequest,
-    req_body: web::Json<api::run::RequestBody>,
+    req_body: web::Bytes,
     config: web::Data<config::Config>,
 ) -> HttpResponse {
-    if !has_valid_access_token(&req, &config) {
-        prepare_error_response(api::authorization_error())
+    let request_started_at = Instant::now();
+    let mut measurements = run::Measurements::default();
+
+    let parse_started_at = Instant::now();
+    let parsed_body = if has_json_content_type(&req) {
+        serde_json::from_slice::<api::run::RequestBody>(&req_body).map_err(|err| {
+            api::ErrorResponse {
+                status_code: 400,
+                body: api::ErrorBody {
+                    error: "request.deserialize".to_string(),
+                    message: format!("Failed to deserialize request body: {err}"),
+                },
+            }
+        })
     } else {
-        api::run::handle(&config, req_body.into_inner())
-            .map(prepare_success_response)
-            .unwrap_or_else(prepare_error_response)
+        Err(api::ErrorResponse {
+            status_code: 400,
+            body: api::ErrorBody {
+                error: "request.content_type".to_string(),
+                message: "Content-Type must be application/json or application/*+json".to_string(),
+            },
+        })
+    };
+    measurements.request_parse_us = Some(run::elapsed_us(parse_started_at));
+
+    let image = parsed_body.as_ref().ok().map(|body| body.image.clone());
+    let result = match parsed_body {
+        Err(err) => Err(err),
+        Ok(_) if !has_valid_access_token(&req, &config) => Err(api::authorization_error()),
+        Ok(req_body) => api::run::handle(&config, req_body, &mut measurements),
+    };
+
+    let (response, status_code, error) = match result {
+        Ok(data) => {
+            let status_code = data.status_code;
+            let started_at = Instant::now();
+            let response = prepare_success_response(data);
+            measurements.response_build_us = Some(
+                measurements
+                    .response_build_us
+                    .unwrap_or_default()
+                    .saturating_add(run::elapsed_us(started_at)),
+            );
+            (response, status_code, None)
+        }
+        Err(data) => {
+            let status_code = data.status_code;
+            let error = Some(data.body.error.clone());
+            let started_at = Instant::now();
+            let response = prepare_error_response(data);
+            measurements.response_build_us = Some(run::elapsed_us(started_at));
+            (response, status_code, error)
+        }
+    };
+
+    measurements.total_us = run::elapsed_us(request_started_at);
+    log_run_request(image, status_code, error, measurements);
+
+    response
+}
+
+fn has_json_content_type(request: &HttpRequest) -> bool {
+    request.mime_type().ok().flatten().is_some_and(|mime| {
+        mime.subtype() == "json" || mime.suffix().is_some_and(|suffix| suffix == "json")
+    })
+}
+
+#[derive(Serialize)]
+struct RunRequestLog {
+    event: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    image: Option<String>,
+    status_code: u16,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<String>,
+    measurements: run::Measurements,
+}
+
+fn log_run_request(
+    image: Option<String>,
+    status_code: u16,
+    error: Option<String>,
+    measurements: run::Measurements,
+) {
+    let entry = RunRequestLog {
+        event: "run_request",
+        image,
+        status_code,
+        error,
+        measurements,
+    };
+
+    match serde_json::to_string(&entry) {
+        Ok(entry) => log::info!(target: "docker_run::request", "{entry}"),
+        Err(err) => {
+            log::error!(target: "docker_run::request", "Failed to serialize run request log: {err}")
+        }
     }
 }
 
@@ -253,4 +349,32 @@ fn build_debug_config(env: &environment::Environment) -> Result<debug::Config, e
     let keep_container = environment::lookup(env, "DEBUG_KEEP_CONTAINER").unwrap_or(false);
 
     Ok(debug::Config { keep_container })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn run_request_log_has_nested_measurements_and_is_one_line() {
+        let entry = RunRequestLog {
+            event: "run_request",
+            image: Some("glot/python:latest".to_string()),
+            status_code: 200,
+            error: None,
+            measurements: run::Measurements {
+                request_parse_us: Some(12),
+                total_us: 34,
+                ..run::Measurements::default()
+            },
+        };
+
+        let json = serde_json::to_string(&entry).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+
+        assert!(!json.contains('\n'));
+        assert_eq!(value["measurements"]["request_parse_us"], 12);
+        assert_eq!(value["measurements"]["total_us"], 34);
+        assert!(value["measurements"].get("container_create_us").is_none());
+    }
 }

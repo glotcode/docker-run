@@ -1,4 +1,5 @@
 use serde_json::{Map, Value};
+use std::time::Instant;
 
 use crate::docker_run::api;
 use crate::docker_run::config;
@@ -14,8 +15,11 @@ pub struct RequestBody {
 pub fn handle(
     config: &config::Config,
     req_body: RequestBody,
+    measurements: &mut run::Measurements,
 ) -> Result<api::SuccessResponse, api::ErrorResponse> {
+    let started_at = Instant::now();
     let container_config = run::prepare_container_config(req_body.image, config.container.clone());
+    measurements.container_config_us = Some(run::elapsed_us(started_at));
 
     let run_result = run::run(
         config.unix_socket.clone(),
@@ -26,10 +30,14 @@ pub fn handle(
         },
         config.debug.clone(),
         &config.cleanup,
+        measurements,
     )
     .map_err(handle_error)?;
 
-    api::prepare_json_response(&run_result, api::JsonFormat::Minimal)
+    let started_at = Instant::now();
+    let response = api::prepare_json_response(&run_result, api::JsonFormat::Minimal);
+    measurements.response_build_us = Some(run::elapsed_us(started_at));
+    response
 }
 
 fn handle_error(err: run::Error) -> api::ErrorResponse {
